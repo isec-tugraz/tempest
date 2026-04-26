@@ -17,10 +17,9 @@ struct MDPSparseModelCheckingHelperReturnType {
     MDPSparseModelCheckingHelperReturnType(MDPSparseModelCheckingHelperReturnType const&) = delete;
     MDPSparseModelCheckingHelperReturnType(MDPSparseModelCheckingHelperReturnType&&) = default;
 
-    MDPSparseModelCheckingHelperReturnType(std::vector<ValueType>&& values, std::unique_ptr<storm::storage::Scheduler<ValueType>>&& scheduler = nullptr)
-        : values(std::move(values)), scheduler(std::move(scheduler)) {
-        // Intentionally left empty.
-    }
+    MDPSparseModelCheckingHelperReturnType(std::vector<ValueType>&& values, std::unique_ptr<storm::storage::Scheduler<ValueType>>&& scheduler = nullptr,
+                                           std::vector<ValueType>&& choiceValues = {})
+        : values(std::move(values)), scheduler(std::move(scheduler)), choiceValues(std::move(choiceValues)) {}
 
     virtual ~MDPSparseModelCheckingHelperReturnType() {
         // Intentionally left empty.
@@ -31,10 +30,13 @@ struct MDPSparseModelCheckingHelperReturnType {
 
     // A scheduler, if it was computed.
     std::unique_ptr<storm::storage::Scheduler<ValueType>> scheduler;
+
+    // The values computed for the available choices.
+    std::vector<ValueType> choiceValues;
 };
+
 }  // namespace helper
 
 }  // namespace modelchecker
 }  // namespace storm
-
 #endif /* MDPMODELCHECKINGRETURNTYPE_H */

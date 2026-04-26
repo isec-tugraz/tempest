@@ -159,9 +159,13 @@ std::unique_ptr<CheckResult> SparseMdpPrctlModelChecker<SparseMdpModelType>::com
                     "Formula needs to specify whether minimal or maximal values are to be computed on nondeterministic model.");
     std::unique_ptr<CheckResult> subResultPointer = this->check(env, pathFormula.getSubformula());
     ExplicitQualitativeCheckResult const& subResult = subResultPointer->asExplicitQualitativeCheckResult();
-    std::vector<SolutionType> numericResult = storm::modelchecker::helper::SparseMdpPrctlHelper<ValueType, SolutionType>::computeNextProbabilities(
+    auto ret = storm::modelchecker::helper::SparseMdpPrctlHelper<ValueType, SolutionType>::computeNextProbabilities(
         env, checkTask.getOptimizationDirection(), this->getModel().getTransitionMatrix(), subResult.getTruthValuesVector());
-    return std::unique_ptr<CheckResult>(new ExplicitQuantitativeCheckResult<SolutionType>(std::move(numericResult)));
+    std::unique_ptr<CheckResult> result(new ExplicitQuantitativeCheckResult<SolutionType>(std::move(ret.values)));
+    if (env.modelchecker().getProduceChoiceValues()) {
+        result->asExplicitQuantitativeCheckResult<SolutionType>().setChoiceValues(std::move(ret.choiceValues));
+    }
+    return result;
 }
 
 template<typename SparseMdpModelType>

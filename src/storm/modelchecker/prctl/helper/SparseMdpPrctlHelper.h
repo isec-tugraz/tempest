@@ -37,9 +37,9 @@ class SparseMdpPrctlHelper {
         Environment const& env, OptimizationDirection dir, rewardbounded::MultiDimensionalRewardUnfolding<ValueType, true>& rewardUnfolding,
         storm::storage::BitVector const& initialStates);
 
-    static std::vector<SolutionType> computeNextProbabilities(Environment const& env, OptimizationDirection dir,
-                                                              storm::storage::SparseMatrix<ValueType> const& transitionMatrix,
-                                                              storm::storage::BitVector const& nextStates);
+    static MDPSparseModelCheckingHelperReturnType<SolutionType> computeNextProbabilities(Environment const& env, OptimizationDirection dir,
+                                                                                        storm::storage::SparseMatrix<ValueType> const& transitionMatrix,
+                                                                                        storm::storage::BitVector const& nextStates);
 
     static MDPSparseModelCheckingHelperReturnType<SolutionType> computeUntilProbabilities(
         Environment const& env, storm::solver::SolveGoal<ValueType, SolutionType>&& goal, storm::storage::SparseMatrix<ValueType> const& transitionMatrix,

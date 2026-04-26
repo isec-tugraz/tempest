@@ -1,6 +1,9 @@
 #include "storm/modelchecker/prctl/helper/SparseMdpPrctlHelper.h"
 
+#include <boost/optional/optional_io.hpp>
+
 #include "storm/adapters/IntervalAdapter.h"
+#include "storm/environment/modelchecker/ModelCheckerEnvironment.h"
 #include "storm/environment/solver/MinMaxSolverEnvironment.h"
 #include "storm/exceptions/IllegalArgumentException.h"
 #include "storm/exceptions/IllegalFunctionCallException.h"
@@ -130,20 +133,23 @@ std::map<storm::storage::sparse::state_type, SolutionType> SparseMdpPrctlHelper<
 }
 
 template<typename ValueType, typename SolutionType>
-std::vector<SolutionType> SparseMdpPrctlHelper<ValueType, SolutionType>::computeNextProbabilities(
+MDPSparseModelCheckingHelperReturnType<SolutionType> SparseMdpPrctlHelper<ValueType, SolutionType>::computeNextProbabilities(
     Environment const& env, OptimizationDirection dir, storm::storage::SparseMatrix<ValueType> const& transitionMatrix,
     storm::storage::BitVector const& nextStates) {
     if constexpr (std::is_same_v<ValueType, storm::Interval>) {
         STORM_LOG_THROW(false, storm::exceptions::NotImplementedException, "We do not support next probabilities with reward models.");
     } else {
-        // Create the vector with which to multiply and initialize it correctly.
         std::vector<ValueType> result(transitionMatrix.getRowGroupCount());
         storm::utility::vector::setVectorValues(result, nextStates, storm::utility::one<ValueType>());
 
         auto multiplier = storm::solver::MultiplierFactory<ValueType>().create(env, transitionMatrix);
-        multiplier->multiplyAndReduce(env, dir, result, nullptr, result);
-
-        return result;
+        std::vector<ValueType> choiceValues(transitionMatrix.getRowCount(), storm::utility::zero<ValueType>());
+        if (env.modelchecker().getProduceChoiceValues()) {
+            multiplier->multiplyAndReduce(env, dir, result, nullptr, result, nullptr, &choiceValues);
+        } else {
+            multiplier->multiplyAndReduce(env, dir, result, nullptr, result);
+        }
+        return MDPSparseModelCheckingHelperReturnType<SolutionType>(std::move(result), nullptr, std::move(choiceValues));
     }
 }
 
@@ -783,6 +789,17 @@ MDPSparseModelCheckingHelperReturnType<SolutionType> SparseMdpPrctlHelper<ValueT
             }
         }
     }
+    std::vector<SolutionType> choiceValues(transitionMatrix.getRowCount(), storm::utility::zero<SolutionType>());
+
+    if constexpr (std::is_same_v<ValueType, storm::Interval>) {
+        STORM_LOG_THROW(false, storm::exceptions::NotImplementedException, "We do not support the computation of choice values with interval models.");
+    } else {
+        if (env.modelchecker().getProduceChoiceValues()) {
+            std::vector<ValueType> b = std::vector<ValueType>(transitionMatrix.getRowCount(), storm::utility::zero<ValueType>());
+            auto multiplier = storm::solver::MultiplierFactory<ValueType>().create(env, transitionMatrix);
+            multiplier->multiply(env, result, &b, choiceValues);
+        }
+    }
 
     // Extend scheduler with choices for the states in the qualitative state sets.
     if (produceScheduler) {
@@ -796,7 +813,7 @@ MDPSparseModelCheckingHelperReturnType<SolutionType> SparseMdpPrctlHelper<ValueT
     STORM_LOG_ASSERT((!produceScheduler && !scheduler) || scheduler->isMemorylessScheduler(), "Expected a memoryless scheduler");
 
     // Return result.
-    return MDPSparseModelCheckingHelperReturnType<SolutionType>(std::move(result), std::move(scheduler));
+    return MDPSparseModelCheckingHelperReturnType<SolutionType>(std::move(result), std::move(scheduler), std::move(choiceValues));
 }
 
 template<typename ValueType, typename SolutionType>
@@ -822,6 +839,9 @@ MDPSparseModelCheckingHelperReturnType<SolutionType> SparseMdpPrctlHelper<ValueT
             computeUntilProbabilities(env, std::move(goal), transitionMatrix, backwardTransitions,
                                       storm::storage::BitVector(transitionMatrix.getRowGroupCount(), true), ~psiStates, qualitative, produceScheduler);
         for (auto& element : result.values) {
+            element = storm::utility::one<SolutionType>() - element;
+        }
+        for (auto& element : result.choiceValues) {
             element = storm::utility::one<SolutionType>() - element;
         }
         return result;
@@ -1466,6 +1486,16 @@ MDPSparseModelCheckingHelperReturnType<SolutionType> SparseMdpPrctlHelper<ValueT
         extendScheduler(*scheduler, goal, qualitativeStateSets, transitionMatrix, backwardTransitions, targetStates, zeroRewardChoicesGetter);
     }
 
+    std::vector<ValueType> choiceValues(transitionMatrix.getRowCount(), storm::utility::zero<ValueType>());
+    if constexpr (std::is_same_v<ValueType, storm::Interval>) {
+      STORM_LOG_THROW(false, storm::exceptions::NotImplementedException, "We do not support the computation of choice values with interval models.");
+    } else {
+      auto multiplier = storm::solver::MultiplierFactory<ValueType>().create(env, transitionMatrix);
+      if (env.modelchecker().getProduceChoiceValues()) {
+        multiplier->multiply(env, result, nullptr, choiceValues);
+      }
+    }
+
     // Sanity check for created scheduler.
     STORM_LOG_ASSERT(!produceScheduler || scheduler, "Expected that a scheduler was obtained.");
     STORM_LOG_ASSERT((!produceScheduler && !scheduler) || !scheduler->isPartialScheduler(), "Expected a fully defined scheduler");
@@ -1475,7 +1505,7 @@ MDPSparseModelCheckingHelperReturnType<SolutionType> SparseMdpPrctlHelper<ValueT
     if constexpr (std::is_same_v<ValueType, storm::Interval>) {
         return MDPSparseModelCheckingHelperReturnType<SolutionType>(std::move(result));
     } else {
-        return MDPSparseModelCheckingHelperReturnType<SolutionType>(std::move(result), std::move(scheduler));
+        return MDPSparseModelCheckingHelperReturnType<SolutionType>(std::move(result), std::move(scheduler), std::move(choiceValues));
     }
 }
 
