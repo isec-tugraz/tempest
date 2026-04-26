@@ -33,10 +33,15 @@ class ModelCheckerEnvironment {
     void setLtl2daTool(std::string const& value);
     void unsetLtl2daTool();
 
+    void setProduceChoiceValues(bool const& value);
+    bool getProduceChoiceValues() const;
+
    private:
     SubEnvironment<MultiObjectiveModelCheckerEnvironment> multiObjectiveModelCheckerEnvironment;
     boost::optional<std::string> ltl2daTool;
     SteadyStateDistributionAlgorithm steadyStateDistributionAlgorithm;
     ConditionalAlgorithmSetting conditionalAlgorithmSetting;
+
+    bool produceChoiceValues = false;
 };
 }  // namespace storm

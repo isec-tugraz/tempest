@@ -67,4 +67,12 @@ void ModelCheckerEnvironment::unsetLtl2daTool() {
     ltl2daTool = boost::none;
 }
 
+void ModelCheckerEnvironment::setProduceChoiceValues(bool const& value) {
+    produceChoiceValues = value;
+}
+
+bool ModelCheckerEnvironment::getProduceChoiceValues() const {
+    return produceChoiceValues;
+}
+
 }  // namespace storm
