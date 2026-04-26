@@ -209,7 +209,7 @@ template<typename ValueType, bool TrivialRowGrouping>
 void ViOperatorMultiplier<ValueType, TrivialRowGrouping>::multiplyAndReduce(Environment const& env, OptimizationDirection const& dir,
                                                                             std::vector<uint64_t> const& rowGroupIndices, std::vector<ValueType> const& x,
                                                                             std::vector<ValueType> const* b, std::vector<ValueType>& result,
-                                                                            std::vector<uint64_t>* choices) const {
+                                                                            std::vector<uint64_t>* choices, std::vector<ValueType>* choiceValues) const {
     if (&result == &x) {
         auto& tmpResult = this->provideCachedVector(x.size());
         multiplyAndReduce(env, dir, rowGroupIndices, x, b, tmpResult, choices);
@@ -249,7 +249,7 @@ template<typename ValueType, bool TrivialRowGrouping>
 void ViOperatorMultiplier<ValueType, TrivialRowGrouping>::multiplyAndReduceGaussSeidel(Environment const& env, OptimizationDirection const& dir,
                                                                                        std::vector<uint64_t> const& rowGroupIndices, std::vector<ValueType>& x,
                                                                                        std::vector<ValueType> const* b, std::vector<uint_fast64_t>* choices,
-                                                                                       bool backwards) const {
+                                                                                       bool backwards, std::vector<ValueType>* choiceValues) const {
     STORM_LOG_THROW(&rowGroupIndices == &this->matrix.getRowGroupIndices(), storm::exceptions::NotSupportedException,
                     "The row group indices must be the same as the ones stored in the matrix of this multiplier");
     auto const& viOp = initialize(backwards);

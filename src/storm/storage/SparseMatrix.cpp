@@ -1857,19 +1857,20 @@ void SparseMatrix<Interval>::performWalkerChaeStep(std::vector<Interval> const& 
 template<typename ValueType>
 void SparseMatrix<ValueType>::multiplyAndReduceForward(OptimizationDirection const& dir, std::vector<uint64_t> const& rowGroupIndices,
                                                        std::vector<ValueType> const& vector, std::vector<ValueType> const* summand,
-                                                       std::vector<ValueType>& result, std::vector<uint64_t>* choices) const {
+                                                       std::vector<ValueType>& result, std::vector<uint64_t>* choices,
+                                                       std::vector<ValueType>* choiceValues) const {
     if (dir == OptimizationDirection::Minimize) {
-        multiplyAndReduceForward<storm::utility::ElementLess<ValueType>>(rowGroupIndices, vector, summand, result, choices);
+        multiplyAndReduceForward<storm::utility::ElementLess<ValueType>>(rowGroupIndices, vector, summand, result, choices, choiceValues);
     } else {
-        multiplyAndReduceForward<storm::utility::ElementGreater<ValueType>>(rowGroupIndices, vector, summand, result, choices);
+        multiplyAndReduceForward<storm::utility::ElementGreater<ValueType>>(rowGroupIndices, vector, summand, result, choices, choiceValues);
     }
 }
 
 template<typename ValueType>
 template<typename Compare>
 void SparseMatrix<ValueType>::multiplyAndReduceForward(std::vector<uint64_t> const& rowGroupIndices, std::vector<ValueType> const& vector,
-                                                       std::vector<ValueType> const* summand, std::vector<ValueType>& result,
-                                                       std::vector<uint64_t>* choices) const {
+                                                       std::vector<ValueType> const* summand, std::vector<ValueType>& result, std::vector<uint64_t>* choices,
+                                                       std::vector<ValueType>* choiceValues) const {
     Compare compare;
     auto elementIt = this->begin();
     auto rowGroupIt = rowGroupIndices.begin();
@@ -1909,6 +1910,10 @@ void SparseMatrix<ValueType>::multiplyAndReduceForward(std::vector<uint64_t> con
                 }
             }
 
+            if (choiceValues) {
+                (*choiceValues)[*rowGroupIt] = currentValue;
+            }
+
             ++rowIt;
             ++currentRow;
 
@@ -1916,6 +1921,10 @@ void SparseMatrix<ValueType>::multiplyAndReduceForward(std::vector<uint64_t> con
                 ValueType newValue = summand ? *summandIt : storm::utility::zero<ValueType>();
                 for (auto elementIte = this->begin() + *(rowIt + 1); elementIt != elementIte; ++elementIt) {
                     newValue += elementIt->getValue() * vector[elementIt->getColumn()];
+                }
+
+                if (choiceValues) {
+                    (*choiceValues)[currentRow] = newValue;
                 }
 
                 if (choices && currentRow == *choiceIt + *rowGroupIt) {
@@ -1946,26 +1955,28 @@ template<>
 void SparseMatrix<storm::RationalFunction>::multiplyAndReduceForward(OptimizationDirection const& dir, std::vector<uint64_t> const& rowGroupIndices,
                                                                      std::vector<storm::RationalFunction> const& vector,
                                                                      std::vector<storm::RationalFunction> const* b,
-                                                                     std::vector<storm::RationalFunction>& result, std::vector<uint64_t>* choices) const {
+                                                                     std::vector<storm::RationalFunction>& result, std::vector<uint64_t>* choices,
+                                                                     std::vector<storm::RationalFunction>* choiceValues) const {
     STORM_LOG_THROW(false, storm::exceptions::NotSupportedException, "This operation is not supported.");
 }
 
 template<typename ValueType>
 void SparseMatrix<ValueType>::multiplyAndReduceBackward(OptimizationDirection const& dir, std::vector<uint64_t> const& rowGroupIndices,
                                                         std::vector<ValueType> const& vector, std::vector<ValueType> const* summand,
-                                                        std::vector<ValueType>& result, std::vector<uint64_t>* choices) const {
+                                                        std::vector<ValueType>& result, std::vector<uint64_t>* choices,
+                                                        std::vector<ValueType>* choiceValues) const {
     if (dir == storm::OptimizationDirection::Minimize) {
-        multiplyAndReduceBackward<storm::utility::ElementLess<ValueType>>(rowGroupIndices, vector, summand, result, choices);
+        multiplyAndReduceBackward<storm::utility::ElementLess<ValueType>>(rowGroupIndices, vector, summand, result, choices, choiceValues);
     } else {
-        multiplyAndReduceBackward<storm::utility::ElementGreater<ValueType>>(rowGroupIndices, vector, summand, result, choices);
+        multiplyAndReduceBackward<storm::utility::ElementGreater<ValueType>>(rowGroupIndices, vector, summand, result, choices, choiceValues);
     }
 }
 
 template<typename ValueType>
 template<typename Compare>
 void SparseMatrix<ValueType>::multiplyAndReduceBackward(std::vector<uint64_t> const& rowGroupIndices, std::vector<ValueType> const& vector,
-                                                        std::vector<ValueType> const* summand, std::vector<ValueType>& result,
-                                                        std::vector<uint64_t>* choices) const {
+                                                        std::vector<ValueType> const* summand, std::vector<ValueType>& result, std::vector<uint64_t>* choices,
+                                                        std::vector<ValueType>* choiceValues) const {
     Compare compare;
     auto elementIt = this->end() - 1;
     auto rowGroupIt = rowGroupIndices.end() - 2;
@@ -2003,6 +2014,11 @@ void SparseMatrix<ValueType>::multiplyAndReduceBackward(std::vector<uint64_t> co
                     oldSelectedChoiceValue = currentValue;
                 }
             }
+
+            if (choiceValues) {
+                (*choiceValues)[*rowGroupIt] = currentValue;
+            }
+
             --rowIt;
             --currentRow;
 
@@ -2010,6 +2026,10 @@ void SparseMatrix<ValueType>::multiplyAndReduceBackward(std::vector<uint64_t> co
                 ValueType newValue = summand ? *summandIt : storm::utility::zero<ValueType>();
                 for (auto elementIte = this->begin() + *rowIt - 1; elementIt != elementIte; --elementIt) {
                     newValue += elementIt->getValue() * vector[elementIt->getColumn()];
+                }
+
+                if (choiceValues) {
+                    (*choiceValues)[currentRow] = newValue;
                 }
 
                 if (choices && currentRow == *choiceIt + *rowGroupIt) {
@@ -2037,14 +2057,15 @@ template<>
 void SparseMatrix<storm::RationalFunction>::multiplyAndReduceBackward(OptimizationDirection const& dir, std::vector<uint64_t> const& rowGroupIndices,
                                                                       std::vector<storm::RationalFunction> const& vector,
                                                                       std::vector<storm::RationalFunction> const* b,
-                                                                      std::vector<storm::RationalFunction>& result, std::vector<uint64_t>* choices) const {
+                                                                      std::vector<storm::RationalFunction>& result, std::vector<uint64_t>* choices,
+                                                                      std::vector<storm::RationalFunction>* choiceValues) const {
     STORM_LOG_THROW(false, storm::exceptions::NotSupportedException, "This operation is not supported.");
 }
 
 template<typename ValueType>
 void SparseMatrix<ValueType>::multiplyAndReduce(OptimizationDirection const& dir, std::vector<uint64_t> const& rowGroupIndices,
                                                 std::vector<ValueType> const& vector, std::vector<ValueType> const* summand, std::vector<ValueType>& result,
-                                                std::vector<uint64_t>* choices) const {
+                                                std::vector<uint64_t>* choices, std::vector<ValueType>* choiceValues) const {
     // If the vector and the result are aliases, we need and temporary vector.
     std::vector<ValueType>* target;
     std::vector<ValueType> temporary;
@@ -2056,7 +2077,7 @@ void SparseMatrix<ValueType>::multiplyAndReduce(OptimizationDirection const& dir
         target = &result;
     }
 
-    this->multiplyAndReduceForward(dir, rowGroupIndices, vector, summand, *target, choices);
+    this->multiplyAndReduceForward(dir, rowGroupIndices, vector, summand, *target, choices, choiceValues);
 
     if (target == &temporary) {
         std::swap(temporary, result);

@@ -3,6 +3,7 @@
 #include "storm/adapters/IntervalAdapter.h"
 #include "storm/adapters/RationalFunctionAdapter.h"
 #include "storm/adapters/RationalNumberAdapter.h"
+#include "storm/environment/modelchecker/ModelCheckerEnvironment.h"
 #include "storm/environment/solver/MultiplierEnvironment.h"
 #include "storm/storage/SparseMatrix.h"
 #include "storm/utility/macros.h"
@@ -41,12 +42,12 @@ void NativeMultiplier<ValueType>::multiplyGaussSeidel(Environment const& env, st
 template<typename ValueType>
 void NativeMultiplier<ValueType>::multiplyAndReduce(Environment const& env, OptimizationDirection const& dir, std::vector<uint64_t> const& rowGroupIndices,
                                                     std::vector<ValueType> const& x, std::vector<ValueType> const* b, std::vector<ValueType>& result,
-                                                    std::vector<uint_fast64_t>* choices) const {
+                                                    std::vector<uint_fast64_t>* choices, std::vector<ValueType>* choiceValues) const {
     std::vector<ValueType>* target = &result;
     if (&x == &result) {
         target = &this->provideCachedVector(x.size());
     }
-    multAddReduce(dir, rowGroupIndices, x, b, *target, choices);
+    multAddReduce(dir, rowGroupIndices, x, b, *target, choices, choiceValues);
     if (&x == &result) {
         std::swap(result, *target);
     }
@@ -55,11 +56,12 @@ void NativeMultiplier<ValueType>::multiplyAndReduce(Environment const& env, Opti
 template<typename ValueType>
 void NativeMultiplier<ValueType>::multiplyAndReduceGaussSeidel(Environment const& env, OptimizationDirection const& dir,
                                                                std::vector<uint64_t> const& rowGroupIndices, std::vector<ValueType>& x,
-                                                               std::vector<ValueType> const* b, std::vector<uint_fast64_t>* choices, bool backwards) const {
+                                                               std::vector<ValueType> const* b, std::vector<uint_fast64_t>* choices, bool backwards,
+                                                               std::vector<ValueType>* choiceValues) const {
     if (backwards) {
-        this->matrix.multiplyAndReduceBackward(dir, rowGroupIndices, x, b, x, choices);
+        this->matrix.multiplyAndReduceBackward(dir, rowGroupIndices, x, b, x, choices, choiceValues);
     } else {
-        this->matrix.multiplyAndReduceForward(dir, rowGroupIndices, x, b, x, choices);
+        this->matrix.multiplyAndReduceForward(dir, rowGroupIndices, x, b, x, choices, choiceValues);
     }
 }
 
@@ -87,8 +89,8 @@ void NativeMultiplier<ValueType>::multAdd(std::vector<ValueType> const& x, std::
 template<typename ValueType>
 void NativeMultiplier<ValueType>::multAddReduce(storm::solver::OptimizationDirection const& dir, std::vector<uint64_t> const& rowGroupIndices,
                                                 std::vector<ValueType> const& x, std::vector<ValueType> const* b, std::vector<ValueType>& result,
-                                                std::vector<uint64_t>* choices) const {
-    this->matrix.multiplyAndReduce(dir, rowGroupIndices, x, b, result, choices);
+                                                std::vector<uint64_t>* choices, std::vector<ValueType>* choiceValues) const {
+    this->matrix.multiplyAndReduce(dir, rowGroupIndices, x, b, result, choices, choiceValues);
 }
 
 template class NativeMultiplier<double>;

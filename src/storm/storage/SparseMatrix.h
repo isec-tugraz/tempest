@@ -926,21 +926,22 @@ class SparseMatrix {
      * @return The resulting vector the content of the given result vector.
      */
     void multiplyAndReduce(storm::solver::OptimizationDirection const& dir, std::vector<uint64_t> const& rowGroupIndices, std::vector<ValueType> const& vector,
-                           std::vector<ValueType> const* summand, std::vector<ValueType>& result, std::vector<uint64_t>* choices) const;
+                           std::vector<ValueType> const* summand, std::vector<ValueType>& result, std::vector<uint64_t>* choices,
+                           std::vector<ValueType>* choiceValues = nullptr) const;
 
     void multiplyAndReduceForward(storm::solver::OptimizationDirection const& dir, std::vector<uint64_t> const& rowGroupIndices,
                                   std::vector<ValueType> const& vector, std::vector<ValueType> const* b, std::vector<ValueType>& result,
-                                  std::vector<uint64_t>* choices) const;
+                                  std::vector<uint64_t>* choices, std::vector<ValueType>* choiceValues = nullptr) const;
     template<typename Compare>
     void multiplyAndReduceForward(std::vector<uint64_t> const& rowGroupIndices, std::vector<ValueType> const& vector, std::vector<ValueType> const* summand,
-                                  std::vector<ValueType>& result, std::vector<uint64_t>* choices) const;
+                                  std::vector<ValueType>& result, std::vector<uint64_t>* choices, std::vector<ValueType>* choiceValues = nullptr) const;
 
     void multiplyAndReduceBackward(storm::solver::OptimizationDirection const& dir, std::vector<uint64_t> const& rowGroupIndices,
                                    std::vector<ValueType> const& vector, std::vector<ValueType> const* b, std::vector<ValueType>& result,
-                                   std::vector<uint64_t>* choices) const;
+                                   std::vector<uint64_t>* choices, std::vector<ValueType>* choiceValues = nullptr) const;
     template<typename Compare>
     void multiplyAndReduceBackward(std::vector<uint64_t> const& rowGroupIndices, std::vector<ValueType> const& vector, std::vector<ValueType> const* b,
-                                   std::vector<ValueType>& result, std::vector<uint64_t>* choices) const;
+                                   std::vector<ValueType>& result, std::vector<uint64_t>* choices, std::vector<ValueType>* choiceValues = nullptr) const;
 
     /*!
      * Multiplies a single row of the matrix with the given vector and returns the result

@@ -67,10 +67,10 @@ class Multiplier {
      * @param choices If given, the choices made in the reduction process are written to this vector.
      */
     void multiplyAndReduce(Environment const& env, OptimizationDirection const& dir, std::vector<ValueType> const& x, std::vector<ValueType> const* b,
-                           std::vector<ValueType>& result, std::vector<uint_fast64_t>* choices = nullptr) const;
+                           std::vector<ValueType>& result, std::vector<uint_fast64_t>* choices = nullptr, std::vector<ValueType>* choiceValues = nullptr) const;
     virtual void multiplyAndReduce(Environment const& env, OptimizationDirection const& dir, std::vector<uint64_t> const& rowGroupIndices,
                                    std::vector<ValueType> const& x, std::vector<ValueType> const* b, std::vector<ValueType>& result,
-                                   std::vector<uint_fast64_t>* choices = nullptr) const = 0;
+                                   std::vector<uint_fast64_t>* choices = nullptr, std::vector<ValueType>* choiceValues = nullptr) const = 0;
 
     /*!
      * Performs a matrix-vector multiplication in gauss-seidel style and then minimizes/maximizes over the row groups
@@ -88,10 +88,11 @@ class Multiplier {
      * @param backwards if true, the iterations will be performed beginning from the last rowgroup and ending at the first rowgroup.
      */
     void multiplyAndReduceGaussSeidel(Environment const& env, OptimizationDirection const& dir, std::vector<ValueType>& x, std::vector<ValueType> const* b,
-                                      std::vector<uint_fast64_t>* choices = nullptr, bool backwards = true) const;
+                                      std::vector<uint_fast64_t>* choices = nullptr, bool backwards = true,
+                                      std::vector<ValueType>* choiceValues = nullptr) const;
     virtual void multiplyAndReduceGaussSeidel(Environment const& env, OptimizationDirection const& dir, std::vector<uint64_t> const& rowGroupIndices,
                                               std::vector<ValueType>& x, std::vector<ValueType> const* b, std::vector<uint_fast64_t>* choices = nullptr,
-                                              bool backwards = true) const = 0;
+                                              bool backwards = true, std::vector<ValueType>* choiceValues = nullptr) const = 0;
 
     /*!
      * Performs repeated matrix-vector multiplication, using x[0] = x and x[i + 1] = A*x[i] + b. After

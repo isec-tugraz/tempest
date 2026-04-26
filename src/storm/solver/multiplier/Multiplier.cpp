@@ -29,14 +29,16 @@ void Multiplier<ValueType>::clearCache() const {
 
 template<typename ValueType>
 void Multiplier<ValueType>::multiplyAndReduce(Environment const& env, OptimizationDirection const& dir, std::vector<ValueType> const& x,
-                                              std::vector<ValueType> const* b, std::vector<ValueType>& result, std::vector<uint_fast64_t>* choices) const {
-    multiplyAndReduce(env, dir, this->matrix.getRowGroupIndices(), x, b, result, choices);
+                                              std::vector<ValueType> const* b, std::vector<ValueType>& result, std::vector<uint_fast64_t>* choices,
+                                              std::vector<ValueType>* choiceValues) const {
+    multiplyAndReduce(env, dir, this->matrix.getRowGroupIndices(), x, b, result, choices, choiceValues);
 }
 
 template<typename ValueType>
 void Multiplier<ValueType>::multiplyAndReduceGaussSeidel(Environment const& env, OptimizationDirection const& dir, std::vector<ValueType>& x,
-                                                         std::vector<ValueType> const* b, std::vector<uint_fast64_t>* choices, bool backwards) const {
-    multiplyAndReduceGaussSeidel(env, dir, this->matrix.getRowGroupIndices(), x, b, choices, backwards);
+                                                         std::vector<ValueType> const* b, std::vector<uint_fast64_t>* choices, bool backwards,
+                                                         std::vector<ValueType>* choiceValues) const {
+    multiplyAndReduceGaussSeidel(env, dir, this->matrix.getRowGroupIndices(), x, b, choices, backwards, choiceValues);
 }
 
 template<typename ValueType>
@@ -105,7 +107,6 @@ void Multiplier<ValueType>::repeatedMultiplyWithFactor(Environment const& env, s
 }
 
 template<typename ValueType>
-
 std::vector<ValueType>& Multiplier<ValueType>::provideCachedVector(uint64_t size) const {
     if (this->cachedVector) {
         this->cachedVector->resize(size);
