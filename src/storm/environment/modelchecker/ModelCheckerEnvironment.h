@@ -6,6 +6,7 @@
 #include "storm/environment/Environment.h"
 #include "storm/environment/SubEnvironment.h"
 #include "storm/modelchecker/helper/infinitehorizon/SteadyStateDistributionAlgorithm.h"
+#include "storm/settings/modules/ConditionalSettings.h"
 
 namespace storm {
 
