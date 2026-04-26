@@ -3,6 +3,7 @@
 #include "storm/adapters/IntervalAdapter.h"
 #include "storm/adapters/RationalFunctionAdapter.h"
 #include "storm/adapters/RationalNumberAdapter.h"
+#include "storm/environment/modelchecker/ModelCheckerEnvironment.h"
 #include "storm/exceptions/InvalidPropertyException.h"
 #include "storm/exceptions/NotImplementedException.h"
 #include "storm/logic/FragmentSpecification.h"
@@ -186,6 +187,9 @@ std::unique_ptr<CheckResult> SparseMdpPrctlModelChecker<SparseMdpModelType>::com
     if (checkTask.isProduceSchedulersSet() && ret.scheduler) {
         result->asExplicitQuantitativeCheckResult<SolutionType>().setScheduler(std::move(ret.scheduler));
     }
+    if (env.modelchecker().getProduceChoiceValues()) {
+        result->asExplicitQuantitativeCheckResult<SolutionType>().setChoiceValues(std::move(ret.choiceValues));
+    }
     return result;
 }
 
@@ -203,6 +207,9 @@ std::unique_ptr<CheckResult> SparseMdpPrctlModelChecker<SparseMdpModelType>::com
     std::unique_ptr<CheckResult> result(new ExplicitQuantitativeCheckResult<SolutionType>(std::move(ret.values)));
     if (checkTask.isProduceSchedulersSet() && ret.scheduler) {
         result->asExplicitQuantitativeCheckResult<SolutionType>().setScheduler(std::move(ret.scheduler));
+    }
+    if (env.modelchecker().getProduceChoiceValues()) {
+        result->asExplicitQuantitativeCheckResult<SolutionType>().setChoiceValues(std::move(ret.choiceValues));
     }
     return result;
 }
@@ -376,6 +383,9 @@ std::unique_ptr<CheckResult> SparseMdpPrctlModelChecker<SparseMdpModelType>::com
     std::unique_ptr<CheckResult> result(new ExplicitQuantitativeCheckResult<SolutionType>(std::move(ret.values)));
     if (checkTask.isProduceSchedulersSet() && ret.scheduler) {
         result->asExplicitQuantitativeCheckResult<SolutionType>().setScheduler(std::move(ret.scheduler));
+    }
+    if (env.modelchecker().getProduceChoiceValues()) {
+        result->asExplicitQuantitativeCheckResult<SolutionType>().setChoiceValues(std::move(ret.choiceValues));
     }
     return result;
 }
