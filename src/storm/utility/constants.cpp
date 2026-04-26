@@ -313,6 +313,21 @@ uint64_t numDigits(ValueType const& number) {
 }
 
 template<typename ValueType>
+uint64_t bitsize(ValueType const& number) {
+    if constexpr (std::is_same_v<ValueType, uint64_t>) {
+        return std::bit_width(number);
+    } else {
+        if (storm::utility::isZero(number)) {
+            return 0;
+        } else {
+            // GMPs sizeinbase returns 1 if number is zero.
+            // see https://gmplib.org/manual/Miscellaneous-Integer-Functions
+            return carl::bitsize(number);
+        }
+    }
+}
+
+template<typename ValueType>
 typename NumberTraits<ValueType>::IntegerType trunc(ValueType const& number) {
     return static_cast<typename NumberTraits<ValueType>::IntegerType>(std::trunc(number));
 }
@@ -412,6 +427,12 @@ template<>
 typename NumberTraits<ClnRationalNumber>::IntegerType convertNumber(uint_fast64_t const& number) {
     STORM_LOG_ASSERT(static_cast<unsigned long int>(number) == number, "Conversion failed, because the number is too large.");
     return NumberTraits<ClnRationalNumber>::IntegerType(static_cast<unsigned long int>(number));
+}
+
+template<>
+typename NumberTraits<ClnRationalNumber>::IntegerType convertNumber(int_fast64_t const& number) {
+    STORM_LOG_ASSERT(static_cast<long int>(number) == number, "Conversion failed, because the number is too large.");
+    return NumberTraits<ClnRationalNumber>::IntegerType(static_cast<long int>(number));
 }
 
 template<>
@@ -634,6 +655,12 @@ typename NumberTraits<GmpRationalNumber>::IntegerType convertNumber(uint_fast64_
 }
 
 template<>
+typename NumberTraits<GmpRationalNumber>::IntegerType convertNumber(int_fast64_t const& number) {
+    STORM_LOG_ASSERT(static_cast<long int>(number) == number, "Conversion failed, because the number is too large.");
+    return NumberTraits<GmpRationalNumber>::IntegerType(static_cast<long int>(number));
+}
+
+template<>
 typename NumberTraits<GmpRationalNumber>::IntegerType convertNumber(double const& number) {
     return NumberTraits<GmpRationalNumber>::IntegerType(number);
 }
@@ -806,6 +833,11 @@ bool isApproxEqual(storm::RationalFunction const& a, storm::RationalFunction con
 
 template<>
 bool isConstant(storm::Interval const& a) {
+    return a.isPointInterval();
+}
+
+template<>
+bool isConstant(storm::RationalInterval const& a) {
     return a.isPointInterval();
 }
 
@@ -1009,6 +1041,16 @@ storm::Interval convertNumber(uint64_t const& number) {
     return storm::Interval(convertNumber<double>(number));
 }
 
+template<>
+storm::RationalInterval convertNumber(double const& number) {
+    return storm::RationalInterval(convertNumber<storm::RationalNumber>(number));
+}
+
+template<>
+storm::RationalInterval convertNumber(uint64_t const& number) {
+    return storm::RationalInterval(convertNumber<storm::RationalNumber>(number));
+}
+
 #if defined(STORM_HAVE_GMP)
 template<>
 storm::Interval convertNumber(storm::GmpRationalNumber const& n) {
@@ -1017,6 +1059,17 @@ storm::Interval convertNumber(storm::GmpRationalNumber const& n) {
 
 template<>
 storm::GmpRationalNumber convertNumber(storm::Interval const& number) {
+    STORM_LOG_ASSERT(number.isPointInterval(), "Interval must be a point interval to convert");
+    return convertNumber<storm::GmpRationalNumber>(number.lower());
+}
+
+template<>
+storm::RationalInterval convertNumber(storm::GmpRationalNumber const& n) {
+    return storm::RationalInterval(convertNumber<storm::RationalNumber>(n));
+}
+
+template<>
+storm::GmpRationalNumber convertNumber(storm::RationalInterval const& number) {
     STORM_LOG_ASSERT(number.isPointInterval(), "Interval must be a point interval to convert");
     return convertNumber<storm::GmpRationalNumber>(number.lower());
 }
@@ -1033,12 +1086,29 @@ storm::ClnRationalNumber convertNumber(storm::Interval const& number) {
     STORM_LOG_ASSERT(number.isPointInterval(), "Interval must be a point interval to convert");
     return convertNumber<storm::ClnRationalNumber>(number.lower());
 }
+
+template<>
+storm::RationalInterval convertNumber(storm::ClnRationalNumber const& n) {
+    return storm::RationalInterval(convertNumber<storm::RationalNumber>(n));
+}
+
+template<>
+storm::ClnRationalNumber convertNumber(storm::RationalInterval const& number) {
+    STORM_LOG_ASSERT(number.isPointInterval(), "Interval must be a point interval to convert");
+    return convertNumber<storm::ClnRationalNumber>(number.lower());
+}
 #endif
 
 template<>
 double convertNumber(storm::Interval const& number) {
     STORM_LOG_ASSERT(number.isPointInterval(), "Interval must be a point interval to convert");
     return number.lower();
+}
+
+template<>
+double convertNumber(storm::RationalInterval const& number) {
+    STORM_LOG_ASSERT(number.isPointInterval(), "Rational interval must be a point interval to convert");
+    return convertNumber<double>(number.lower());
 }
 
 template<>
@@ -1051,6 +1121,18 @@ bool isApproxEqual(storm::Interval const& a, storm::Interval const& b, storm::In
     STORM_LOG_ASSERT(precision.isPointInterval(), "Precision must be a point interval");
     return isApproxEqual<double>(a.lower(), b.lower(), precision.center(), relative) &&
            isApproxEqual<double>(a.upper(), b.upper(), precision.center(), relative);
+}
+
+template<>
+bool isApproxEqual(storm::RationalInterval const& a, storm::RationalInterval const& b, storm::RationalInterval const& precision, bool relative) {
+    STORM_LOG_ASSERT(precision.isPointInterval(), "Precision must be a point interval");
+    return isApproxEqual<storm::RationalNumber>(a.lower(), b.lower(), precision.center(), relative) &&
+           isApproxEqual<storm::RationalNumber>(a.upper(), b.upper(), precision.center(), relative);
+}
+
+template<>
+storm::RationalInterval abs(storm::RationalInterval const& interval) {
+    return interval.abs();
 }
 
 // Explicit instantiations.
@@ -1132,6 +1214,7 @@ template bool isNonNegative(storm::storage::sparse::state_type const& value);
 template bool isInfinity(storm::storage::sparse::state_type const& value);
 template bool isBetween(storm::storage::sparse::state_type const& a, storm::storage::sparse::state_type const& b, storm::storage::sparse::state_type const& c,
                         bool strict);
+template uint64_t bitsize(storm::storage::sparse::state_type const& number);
 
 // other instantiations
 template unsigned long convertNumber(long const&);
@@ -1165,6 +1248,7 @@ template storm::ClnRationalNumber min(storm::ClnRationalNumber const& first, sto
 template storm::ClnRationalNumber round(storm::ClnRationalNumber const& number);
 template std::string to_string(storm::ClnRationalNumber const& value);
 template uint64_t numDigits(const storm::ClnRationalNumber& number);
+template uint64_t bitsize(storm::ClnIntegerNumber const& number);
 #endif
 
 #if defined(STORM_HAVE_GMP)
@@ -1194,6 +1278,7 @@ template storm::GmpRationalNumber min(storm::GmpRationalNumber const& first, sto
 template storm::GmpRationalNumber round(storm::GmpRationalNumber const& number);
 template std::string to_string(storm::GmpRationalNumber const& value);
 template uint64_t numDigits(const storm::GmpRationalNumber& number);
+template uint64_t bitsize(storm::GmpIntegerNumber const& number);
 #endif
 
 // Instantiations for rational function.
@@ -1216,8 +1301,21 @@ template bool isAlmostZero(Interval const& value);
 template bool isNonNegative(Interval const& value);
 template bool isPositive(Interval const& value);
 template bool isBetween(Interval const&, Interval const&, Interval const& value, bool);
+template Interval convertNumber(Interval const&);
 
 template std::string to_string(storm::Interval const& value);
 
+// Instantiations for intervals.
+template RationalInterval one();
+template RationalInterval zero();
+template bool isOne(RationalInterval const& value);
+template bool isZero(RationalInterval const& value);
+template bool isInfinity(RationalInterval const& value);
+template bool isAlmostZero(RationalInterval const& value);
+template bool isNonNegative(RationalInterval const& value);
+template bool isPositive(RationalInterval const& value);
+template bool isBetween(RationalInterval const&, RationalInterval const&, RationalInterval const& value, bool);
+
+template std::string to_string(storm::RationalInterval const& value);
 }  // namespace utility
 }  // namespace storm

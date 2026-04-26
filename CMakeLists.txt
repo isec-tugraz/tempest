@@ -4,10 +4,13 @@ if (NOT ${CMAKE_VERSION} VERSION_LESS 3.24)
 endif()
 
 # Set project name
-project (storm
-		LANGUAGES CXX C
-		VERSION 1.11.1.1)
-# Version x.y.z.1 should be read as: This is an updated version of x.y.z that has not been released as x.y.z+1 yet.
+project(storm
+	VERSION 1.12.0.1
+	# Version x.y.z.1 should be read as: This is an updated version of x.y.z that has not been released as x.y.z+1 yet.
+	LANGUAGES CXX C
+	DESCRIPTION "Storm - A Modern Probabilistic Model Checker"
+	HOMEPAGE_URL "https://www.stormchecker.org"
+)
 
 # Add the resources/cmake folder to Module Search Path
 set(STORM_CMAKE_FIND_MODULES "${PROJECT_SOURCE_DIR}/resources/cmake/find_modules")
@@ -70,8 +73,8 @@ set(STORM_QVBS_ROOT "" CACHE STRING "The root directory of the Quantitative Veri
 MARK_AS_ADVANCED(STORM_QVBS_ROOT)
 
 ## Configuring dependencies
-set(STORM_CARL_GIT_REPO "https://github.com/moves-rwth/carl-storm.git" CACHE STRING "For fetching carl: which git repo to use")
-option(STORM_CARL_GIT_TAG "For fetching carl: which git tag to use" "14.33")
+set(STORM_CARL_GIT_REPO "https://github.com/stormchecker/carl-storm.git" CACHE STRING "For fetching carl: which git repo to use")
+option(STORM_CARL_GIT_TAG "For fetching carl: which git tag to use" "14.34")
 MARK_AS_ADVANCED(STORM_CARL_GIT_TAG)
 option(STORM_DISABLE_CUDD "Sets whether linking with CUDD should be disabled." OFF)
 option(STORM_DISABLE_GLPK "Sets whether linking with GLPK should be disabled." OFF)
@@ -81,6 +84,9 @@ option(STORM_DISABLE_GMM "Sets whether linking with GMM should be disabled." OFF
 option(STORM_DISABLE_GUROBI "Sets whether linking with Gurobi should be disabled." OFF)
 set(GUROBI_ROOT "" CACHE STRING "A hint to the root directory of Gurobi.")
 MARK_AS_ADVANCED(GUROBI_ROOT)
+option(STORM_DISABLE_LIBARCHIVE "Sets whether linking with LibArchive should be disabled." OFF)
+set(LibArchive_ROOT "" CACHE STRING "A hint to the root directory of LibArchive.")
+MARK_AS_ADVANCED(LibArchive_ROOT)
 option(STORM_DISABLE_MATHSAT "Sets whether linking with MathSAT should be disabled." OFF)
 set(MATHSAT_ROOT "" CACHE STRING "A hint to the root directory of MathSAT.")
 MARK_AS_ADVANCED(MATHSAT_ROOT)
@@ -127,12 +133,13 @@ mark_as_advanced(CMAKE_OSX_SYSROOT)
 mark_as_advanced(CMAKE_OSX_DEPLOYMENT_TARGET)
 
 # Offer the user the choice of overriding the installation directories
-set(STORM_INCLUDE_INSTALL_DIR include/storm CACHE PATH "Installation directory for header files" )
-set(STORM_LIB_INSTALL_DIR lib/storm CACHE PATH "Installation directory for libraries")
-set(STORM_BIN_INSTALL_DIR bin/storm CACHE PATH "Installation directory for executables")
-set(STORM_CMAKE_INSTALL_DIR lib/cmake/storm CACHE PATH  "Installation directory for CMake files")
-set(STORM_RESOURCE_INCLUDE_INSTALL_DIR include/storm/resources/ CACHE PATH "Installation directory for dependency header files")
-set(STORM_RESOURCE_LIBRARY_INSTALL_DIR lib/storm/resources/ CACHE PATH "Installation directory for dependency library files")
+include(GNUInstallDirs)
+set(STORM_INCLUDE_INSTALL_DIR ${CMAKE_INSTALL_INCLUDEDIR}/storm CACHE PATH "Installation directory for header files" )
+set(STORM_LIB_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR} CACHE PATH "Installation directory for libraries")
+set(STORM_BIN_INSTALL_DIR ${CMAKE_INSTALL_BINDIR} CACHE PATH "Installation directory for executables")
+set(STORM_CMAKE_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/storm CACHE PATH  "Installation directory for CMake files")
+set(STORM_RESOURCE_INCLUDE_INSTALL_DIR ${STORM_INCLUDE_INSTALL_DIR}/resources CACHE PATH "Installation directory for dependency header files")
+set(STORM_RESOURCE_LIBRARY_INSTALL_DIR ${STORM_LIB_INSTALL_DIR} CACHE PATH "Installation directory for dependency library files")
 if(PROJECT_IS_TOP_LEVEL)
 	set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 	set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
@@ -405,7 +412,7 @@ message(STATUS "Storm - Build type: ${CMAKE_BUILD_TYPE}")
 # in the the system does not have a library
 include(resources/3rdparty/CMakeLists.txt)
 
-if(STORM_HAVE_GLPK OR STORM_HAVE_GUROBI OR STORM_HAVE_SOPLEX OR STORM_HAVE_Z3_OPTIMIZE)
+if(STORM_HAVE_GLPK OR STORM_HAVE_GUROBI OR STORM_HAVE_SOPLEX OR STORM_HAVE_Z3)
 	set(STORM_HAVE_LP_SOLVER ON)
 	message(STATUS "Storm - Compiled with an LP solver.")
 else()
@@ -531,6 +538,6 @@ install(FILES ${PROJECT_BINARY_DIR}/stormConfig.cmake.install DESTINATION ${STOR
 install(FILES ${PROJECT_BINARY_DIR}/stormConfigVersion.cmake DESTINATION ${STORM_CMAKE_INSTALL_DIR})
 install(EXPORT storm_Targets FILE stormTargets.cmake DESTINATION ${STORM_CMAKE_INSTALL_DIR})
 
-include(StormCPackConfig.cmake)
-
 add_subdirectory(tests/smoke)
+include(StormCPackConfig.cmake)
+include(${PROJECT_SOURCE_DIR}/resources/cmake/stormCPackConfig.cmake)

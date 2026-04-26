@@ -63,11 +63,10 @@ void Model<ValueType, RewardModelType>::assertValidityOfComponents(
     // general components for all model types.
     STORM_LOG_THROW(this->getTransitionMatrix().getColumnCount() == stateCount, storm::exceptions::IllegalArgumentException,
                     "Invalid column count of transition matrix.");
-    STORM_LOG_ASSERT(
-        components.rateTransitions || this->hasParameters() || this->hasUncertainty() || this->getTransitionMatrix().isProbabilistic(stochasticTolerance),
-        "The matrix is not probabilistic.");
-    if (this->hasUncertainty()) {
-        STORM_LOG_ASSERT(this->getTransitionMatrix().hasOnlyPositiveEntries(), "Not all entries are (strictly) positive.");
+    {
+        std::string reasonNotProbabilistic [[maybe_unused]];
+        STORM_LOG_ASSERT(components.rateTransitions || this->getTransitionMatrix().isProbabilistic(stochasticTolerance, reasonNotProbabilistic),
+                         "The matrix is not probabilistic. " << reasonNotProbabilistic);
     }
     STORM_LOG_THROW(this->getStateLabeling().getNumberOfItems() == stateCount, storm::exceptions::IllegalArgumentException,
                     "Invalid item count (" << this->getStateLabeling().getNumberOfItems() << ") of state labeling (states: " << stateCount << ").");
@@ -416,7 +415,7 @@ std::size_t Model<ValueType, RewardModelType>::hash() const {
 template<typename ValueType, typename RewardModelType>
 void Model<ValueType, RewardModelType>::printModelInformationHeaderToStream(std::ostream& out) const {
     out << "-------------------------------------------------------------- \n";
-    out << "Model type: \t" << this->getType() << " (sparse)\n";
+    out << "Model type: \t" << (storm::IsIntervalType<ValueType> ? "I" : "") << this->getType() << " (sparse)\n";
     out << "States: \t" << this->getNumberOfStates() << '\n';
     out << "Transitions: \t" << this->getNumberOfTransitions() << '\n';
 }
@@ -644,7 +643,7 @@ bool Model<ValueType, RewardModelType>::supportsParameters() const {
 
 template<typename ValueType, typename RewardModelType>
 bool Model<ValueType, RewardModelType>::supportsUncertainty() const {
-    return std::is_same<ValueType, storm::Interval>::value;
+    return storm::IsIntervalType<ValueType>;
 }
 
 template<typename ValueType, typename RewardModelType>
@@ -721,7 +720,7 @@ std::set<storm::RationalFunctionVariable> getAllParameters(Model<storm::Rational
     std::set<storm::RationalFunctionVariable> parameters = getProbabilityParameters(model);
     std::set<storm::RationalFunctionVariable> rewardParameters = getRewardParameters(model);
     parameters.insert(rewardParameters.begin(), rewardParameters.end());
-    std::set<storm::RationalFunctionVariable> rateParameters = getRewardParameters(model);
+    std::set<storm::RationalFunctionVariable> rateParameters = getRateParameters(model);
     parameters.insert(rateParameters.begin(), rateParameters.end());
     return parameters;
 }
@@ -729,7 +728,9 @@ std::set<storm::RationalFunctionVariable> getAllParameters(Model<storm::Rational
 template class Model<double>;
 template class Model<double, storm::models::sparse::StandardRewardModel<storm::Interval>>;
 template class Model<storm::RationalNumber>;
+template class Model<storm::RationalNumber, storm::models::sparse::StandardRewardModel<storm::RationalInterval>>;
 template class Model<storm::Interval>;
+template class Model<storm::RationalInterval>;
 template class Model<storm::RationalFunction>;
 }  // namespace sparse
 }  // namespace models

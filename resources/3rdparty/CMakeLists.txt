@@ -4,6 +4,7 @@ if(PROJECT_TOP_LEVEL)
 endif()
 add_custom_target(test-resources)
 
+include(FetchContent)
 
 message(STATUS "Storm - Building external resources with ${STORM_RESOURCES_BUILD_JOBCOUNT} job(s) in parallel.")
 
@@ -37,6 +38,42 @@ install(TARGETS l3pp EXPORT storm_Targets)
 install(DIRECTORY ${STORM_3RDPARTY_BINARY_DIR}/l3pp/ DESTINATION ${STORM_RESOURCE_INCLUDE_INSTALL_DIR}/l3pp FILES_MATCHING PATTERN "*.h" PATTERN ".git" EXCLUDE)
 add_dependencies(storm_resources l3pp)
 list(APPEND STORM_DEP_TARGETS l3pp)
+
+#############################################################
+##
+## LibArchive (optional)
+##
+############################################################# 
+
+if(NOT STORM_DISABLE_LIBARCHIVE)
+    if(MACOSX AND LibArchive_ROOT STREQUAL "")
+        # macOS already provides libarchive but no include files.
+        # We catch the common case where libarchive is installed via homebrew following https://stackoverflow.com/a/76916842.
+        # Homebrew ships libarchive keg only. We try to get a hint where libarchive is located
+        find_program(_LibArchive_BREW_EXECUTABLE brew)
+        if (_LibArchive_BREW_EXECUTABLE)
+            execute_process(
+                    COMMAND "${_LibArchive_BREW_EXECUTABLE}" --prefix libarchive
+                    ERROR_QUIET # Ignore any error, e.g. if brew is not installed.
+                    OUTPUT_VARIABLE LibArchive_ROOT
+                    OUTPUT_STRIP_TRAILING_WHITESPACE
+            )
+        endif ()
+        unset(_LibArchive_BREW_EXECUTABLE)
+    endif()
+    find_package(LibArchive QUIET)
+    if(LibArchive_FOUND)
+        SET(STORM_HAVE_LIBARCHIVE ON)
+        message (STATUS "Storm - Linking with LibArchive (version: ${LibArchive_VERSION}, libraries: ${LibArchive_LIBRARIES}, include: ${LibArchive_INCLUDE_DIRS}).")
+        list(APPEND STORM_DEP_IMP_TARGETS LibArchive::LibArchive)
+    else()
+        SET(STORM_HAVE_LIBARCHIVE OFF)
+        message (STATUS "Storm - LibArchive not found. Loading and exporting UMB models and compressed files will not be supported.")
+	endif()
+else()
+    SET(STORM_HAVE_LIBARCHIVE OFF)
+    message (STATUS "Storm - Not linking with LibArchive. Loading and exporting UMB models and compressed files will not be supported.")
+endif()
 
 #############################################################
 ##
@@ -85,17 +122,16 @@ endif()
 #############################################################
 
 # Checkout Eigen
-# We're checking out Eigen using the (currently not officially released) version 3.4.1
-# See here https://gitlab.com/libeigen/eigen/-/commit/bae907b8f6078b1df290729eef946360315bd312
-# The current official release is 3.4.0 which results in issues, see https://github.com/moves-rwth/storm/issues/162
-message(STATUS "Storm - Including Eigen commit bae907b8f6078b1df290729eef946360315bd312 (unofficial 3.4.1 release).")
+# https://gitlab.com/libeigen/eigen/
+set(STORM_EIGEN_GIT_TAG "bc3b39870ecb690a623a3f49149a358b95c5781d")
+message(STATUS "Storm - Including Eigen commit ${STORM_EIGEN_GIT_TAG} (Version 5.0.1).")
 ExternalProject_Add(
         eigen_src
         GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
-        GIT_TAG bae907b8f6078b1df290729eef946360315bd312
+        GIT_TAG ${STORM_EIGEN_GIT_TAG}
         SOURCE_DIR ${STORM_3RDPARTY_BINARY_DIR}/StormEigen
         # First check whether patch was already applied (--reverse --check), otherwise apply patch
-        PATCH_COMMAND git apply ${STORM_3RDPARTY_SOURCE_DIR}/patches/eigen341alpha.patch --reverse --check -q || git apply ${STORM_3RDPARTY_SOURCE_DIR}/patches/eigen341alpha.patch
+        PATCH_COMMAND git apply ${STORM_3RDPARTY_SOURCE_DIR}/patches/eigen501.patch --reverse --check -q || git apply ${STORM_3RDPARTY_SOURCE_DIR}/patches/eigen501.patch
         UPDATE_COMMAND ""
         CONFIGURE_COMMAND ""
         BUILD_COMMAND ""
@@ -103,23 +139,23 @@ ExternalProject_Add(
         LOG_DOWNLOAD ON
         LOG_INSTALL ON
 )
-add_library(eigen3storm INTERFACE) # Not imported, we are in control of the sources.
-add_dependencies(eigen3storm eigen_src)
+add_library(eigenstorm INTERFACE) # Not imported, we are in control of the sources.
+add_dependencies(eigenstorm eigen_src)
 if(STORM_WARNING_AS_ERROR AND STORM_COMPILER_GCC)
         # Ignore warning in Eigen
-        target_compile_options(eigen3storm INTERFACE -Wno-class-memaccess)
+        target_compile_options(eigenstorm INTERFACE -Wno-class-memaccess)
 endif()
 # note that we include without StormEigen
-target_include_directories(eigen3storm INTERFACE
+target_include_directories(eigenstorm INTERFACE
         $<BUILD_INTERFACE:${STORM_3RDPARTY_BINARY_DIR}>
         $<INSTALL_INTERFACE:${STORM_RESOURCE_INCLUDE_INSTALL_DIR}>
 )
-install(TARGETS eigen3storm EXPORT storm_Targets)
+install(TARGETS eigenstorm EXPORT storm_Targets)
 install(DIRECTORY ${STORM_3RDPARTY_BINARY_DIR}/StormEigen/
         DESTINATION ${STORM_RESOURCE_INCLUDE_INSTALL_DIR}/StormEigen
         PATTERN ".git" EXCLUDE)
-add_dependencies(storm_resources eigen3storm)
-list(APPEND STORM_DEP_TARGETS eigen3storm)
+add_dependencies(storm_resources eigenstorm)
+list(APPEND STORM_DEP_TARGETS eigenstorm)
 
 #############################################################
 ##
@@ -134,6 +170,35 @@ if(${Boost_VERSION} VERSION_GREATER_EQUAL "1.81.0")
     message(STATUS "Storm - Using workaround for Boost >= 1.81")
     add_compile_options(-DBOOST_PHOENIX_STL_TUPLE_H_) # or add compile_definitions?
     # TODO Only do this for a specific target?
+endif()
+
+if(${Boost_VERSION} VERSION_LESS "1.75.0") # Debian 12 ships with Boost 1.74.0
+    message(STATUS "Storm - Loading Boost.PFR as it is not part of Boost < 1.75.0")
+    ExternalProject_Add(
+            boost_pfr_src
+            GIT_REPOSITORY https://github.com/boostorg/pfr.git
+            GIT_TAG 2.2.0
+            SOURCE_DIR ${STORM_3RDPARTY_BINARY_DIR}/boost_pfr
+            PATCH_COMMAND ""
+            UPDATE_COMMAND ""
+            CONFIGURE_COMMAND ""
+            BUILD_COMMAND ""
+            INSTALL_COMMAND ""
+            LOG_DOWNLOAD ON
+            LOG_INSTALL ON
+    )
+    add_library(boost_pfr INTERFACE) # Not imported, we are in control of the sources.
+    add_dependencies(boost_pfr boost_pfr_src)
+    target_include_directories(boost_pfr INTERFACE
+            $<BUILD_INTERFACE:${STORM_3RDPARTY_BINARY_DIR}/boost_pfr/include>
+            $<INSTALL_INTERFACE:${STORM_RESOURCE_INCLUDE_INSTALL_DIR}/boost_pfr>
+    )
+    install(TARGETS boost_pfr EXPORT storm_Targets)
+    install(DIRECTORY ${STORM_3RDPARTY_BINARY_DIR}/boost_pfr/include/
+            DESTINATION ${STORM_RESOURCE_INCLUDE_INSTALL_DIR}/boost_pfr
+            PATTERN ".git" EXCLUDE)
+    add_dependencies(storm_resources boost_pfr)
+    list(APPEND STORM_DEP_TARGETS boost_pfr)
 endif()
 
 message(STATUS "Storm - Using boost ${Boost_VERSION} (library version ${Boost_LIB_VERSION}).")
@@ -189,7 +254,7 @@ list(APPEND STORM_DEP_TARGETS phmap)
 # Use the shipped version of cpphoafparser
 message(STATUS "Storm - Including cpphoafparser 0.99.2")
 set(cppHOAparser_SOURCE_DIR ${STORM_3RDPARTY_SOURCE_DIR}/cpphoafparser-0.99.2/include)
-set(cppHOAparser_INSTALL_DIR ${STORM_RESOURCE_INCLUDE_INSTALL_DIR}/cpphoafparser-0.99.2/)
+set(cppHOAparser_INSTALL_DIR ${STORM_RESOURCE_INCLUDE_INSTALL_DIR}/cpphoafparser/)
 add_library(cppHOAparser INTERFACE) # Not imported, we are in control of the sources.
 target_include_directories(cppHOAparser INTERFACE
         $<BUILD_INTERFACE:${cppHOAparser_SOURCE_DIR}>
@@ -227,7 +292,7 @@ list(APPEND STORM_DEP_TARGETS ModernJSON)
 #############################################################
 
 if(NOT STORM_DISABLE_Z3)
-    find_package(Z3 QUIET 4.8.7 NO_MODULE)
+    find_package(Z3 QUIET 4.8.12 NO_MODULE)
     # Notice that such old z3 versions do not provide config files, so we could bump this version ahead.
     if(TARGET z3::libz3)
         set(STORM_HAVE_Z3 ON)
@@ -240,14 +305,13 @@ if(NOT STORM_DISABLE_Z3)
             message(WARNING "Storm - Could not link with z3. Building of Prism/JANI models will not be supported.")
             set(Z3_FOUND FALSE)
         else()
-            # Check whether the version of z3 supports optimization
-            message(STATUS "Storm - Linking with Z3 (version ${Z3_VERSION}). (Z3 version supports optimization)")
+            message(STATUS "Storm - Linking with Z3 (version ${Z3_VERSION}).")
             list(APPEND STORM_DEP_IMP_TARGETS z3::libz3)
         endif()
     else()
-        # Debian and Ubuntu packages are as of Debian 14 and Ubuntu 24.04 very old,
+        # Debian and Ubuntu packages are as of Debian 12 and Ubuntu 24.04 very old,
         # such that no Cmake config files are provided. For the time being, we use a FindZ3.cmake script.
-        find_package(Z3 QUIET 4.8.7)
+        find_package(Z3 QUIET 4.8.12)
 
         if(Z3_FOUND)
 
@@ -259,8 +323,7 @@ if(NOT STORM_DISABLE_Z3)
                 message(WARNING "Storm - Could not link with z3. Building of Prism/JANI models will not be supported.")
                 set(Z3_FOUND FALSE)
             else()
-                # Check whether the version of z3 supports optimization
-                message(STATUS "Storm - Linking with Z3 (version ${Z3_VERSION}). (Z3 version supports optimization)")
+                message(STATUS "Storm - Linking with Z3 (version ${Z3_VERSION}).")
 
                 add_library(z3 SHARED IMPORTED)
                 set_target_properties(
@@ -279,12 +342,6 @@ else()
     message(WARNING "Storm - Not linking with Z3. Building of Prism/JANI models will not be supported.")
 endif()
 
-if(Z3_FOUND)
-    # TODO We may remove STORM_HAVE_Z3_OPTIMIZE checks
-    # TODO We may remove STORM_Z3_API_USES_STANDARD_INTEGERS checks
-    set(STORM_Z3_API_USES_STANDARD_INTEGERS ON)
-    set(STORM_HAVE_Z3_OPTIMIZE ON)
-endif()
 
 #############################################################
 ##
@@ -369,7 +426,8 @@ endif()
 ##      carl (including cln and ginac)
 ##
 #############################################################
-# Set compile flags for dependencies
+
+# Set CLN/GiNaC configuration
 if(STORM_USE_CLN_EA OR STORM_USE_CLN_RF)
     set(SHIPPED_CARL_USE_CLN_NUMBERS ON)
     set(SHIPPED_CARL_USE_GINAC ON)
@@ -378,26 +436,30 @@ else()
     set(SHIPPED_CARL_USE_GINAC OFF)
 endif()
 
-include(FetchContent)
+# Fetch carl
 FETCHCONTENT_DECLARE(
-        carl
-        GIT_REPOSITORY ${STORM_CARL_GIT_REPO}
-        GIT_TAG ${STORM_CARL_GIT_TAG}
+    carl
+    GIT_REPOSITORY ${STORM_CARL_GIT_REPO}
+    GIT_TAG ${STORM_CARL_GIT_TAG}
 )
-SET(EXCLUDE_TESTS_FROM_ALL ON)  #carl without tests
-SET(THREAD_SAFE ON) #carl thread safe code
-SET(USE_CLN_NUMBERS ${SHIPPED_CARL_USE_CLN_NUMBERS})
-SET(USE_GINAC ${SHIPPED_CARL_USE_GINAC})
-SET(PORTABLE ${STORM_PORTABLE})
-SET(CARL_LIB_INSTALL_DIR "lib/storm/resources")
-SET(CARL_INCLUDE_INSTALL_DIR "include/storm/resources") # maybe use resources folder /carl instead for consistency?
+
+# Configure carl
+SET(CARL_EXCLUDE_TESTS_FROM_ALL ON)  #carl without tests
+SET(CARL_THREAD_SAFE ON) #carl thread safe code
+SET(CARL_USE_CLN_NUMBERS ${SHIPPED_CARL_USE_CLN_NUMBERS})
+SET(CARL_USE_GINAC ${SHIPPED_CARL_USE_GINAC})
+SET(CARL_EIGEN_GIT_TAG ${STORM_EIGEN_GIT_TAG})
+SET(CARL_PORTABLE ${STORM_PORTABLE})
 SET(CARL_EXPORT_TO_CMAKE OFF)
-SET(CARL_CMAKE_INSTALL_DIR "lib/cmake/storm")
-# We do not want to build or own version of ginac and cln, it adds levels of complexity that we currently do not want to handle.
-SET(ALLOW_SHIPPED_CLN OFF)
-SET(ALLOW_SHIPPED_GINAC OFF)
+
+# Override carl's install dirs to match system conventions
+SET(CARL_LIB_INSTALL_DIR ${STORM_RESOURCE_LIBRARY_INSTALL_DIR})
+SET(CARL_INCLUDE_INSTALL_DIR ${STORM_RESOURCE_INCLUDE_INSTALL_DIR}/carl)
+SET(CARL_CMAKE_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/carl)
+
 FETCHCONTENT_MAKEAVAILABLE(carl)
 include(${carl_BINARY_DIR}/carlConfig.cmake)
+
 # Read variables from this config.
 set(STORM_HAVE_CLN ${CARL_HAVE_CLN})
 set(STORM_HAVE_GINAC ${CARL_HAVE_GINAC})
@@ -552,8 +614,8 @@ if(NOT STORM_DISABLE_SYLVAN)
     SET(SYLVAN_GMP ON)
     SET(USE_CARL ON)
     set(SYLVAN_PORTABLE ${STORM_PORTABLE})
-    SET(SYLVAN_INSTALL_BINDIR ${STORM_RESOURCE_BIN_INSTALL_DIR}/sylvan)
-    SET(SYLVAN_INSTALL_LIBDIR ${STORM_RESOURCE_LIBRARY_INSTALL_DIR}/sylvan)
+    SET(SYLVAN_INSTALL_BINDIR ${STORM_RESOURCE_BIN_INSTALL_DIR})
+    SET(SYLVAN_INSTALL_LIBDIR ${STORM_RESOURCE_LIBRARY_INSTALL_DIR})
     SET(SYLVAN_INSTALL_INCLUDEDIR ${STORM_RESOURCE_INCLUDE_INSTALL_DIR}/sylvan)
     SET(CMAKE_POSITION_INDEPENDENT_CODE ON) # Likely only necessary on linux
     SET(STORM_SOURCE_DIR "${PROJECT_SOURCE_DIR}/src/") # TODO this is ugly.
@@ -606,4 +668,3 @@ set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads REQUIRED)
 list(APPEND STORM_DEP_IMP_TARGETS Threads::Threads)
-

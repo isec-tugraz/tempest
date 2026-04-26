@@ -5,6 +5,7 @@
 #include "storm/api/storm.h"
 #include "storm/environment/Environment.h"
 #include "storm/environment/modelchecker/MultiObjectiveModelCheckerEnvironment.h"
+#include "storm/environment/solver/SolverEnvironment.h"
 #include "storm/exceptions/InvalidOperationException.h"
 #include "storm/modelchecker/multiobjective/MultiObjectiveModelChecking.h"
 #include "storm/modelchecker/results/ExplicitParetoCurveCheckResult.h"
@@ -12,8 +13,6 @@
 #include "storm/modelchecker/results/ExplicitQuantitativeCheckResult.h"
 #include "storm/models/sparse/Mdp.h"
 #include "storm/storage/SchedulerClass.h"
-
-#ifdef STORM_HAVE_Z3_OPTIMIZE
 
 namespace {
 
@@ -118,6 +117,12 @@ class MultiObjectiveSchedRestModelCheckerTest : public ::testing::Test {
    public:
     typedef storm::RationalNumber ValueType;
 
+    void SetUp() override {
+#ifndef STORM_HAVE_Z3
+        GTEST_SKIP() << "Z3 not available.";
+#endif
+    }
+
     bool isFlowEncoding() const {
         return TestType::getEnv().modelchecker().multi().getEncodingType() == storm::MultiObjectiveModelCheckerEnvironment::EncodingType::Flow;
     }
@@ -125,6 +130,7 @@ class MultiObjectiveSchedRestModelCheckerTest : public ::testing::Test {
     storm::Environment getPositionalDeterministicEnvironment() {
         auto env = TestType::getEnv();
         env.modelchecker().multi().setSchedulerRestriction(storm::storage::SchedulerClass().setPositional().setIsDeterministic());
+        env.solver().setForceExact(true);
         return env;
     }
 
@@ -132,6 +138,7 @@ class MultiObjectiveSchedRestModelCheckerTest : public ::testing::Test {
         auto env = TestType::getEnv();
         env.modelchecker().multi().setSchedulerRestriction(
             storm::storage::SchedulerClass().setMemoryPattern(storm::storage::SchedulerClass::MemoryPattern::GoalMemory).setIsDeterministic());
+        env.solver().setForceExact(true);
         return env;
     }
 
@@ -273,13 +280,13 @@ TYPED_TEST(MultiObjectiveSchedRestModelCheckerTest, steps) {
     {
         auto result = storm::modelchecker::multiobjective::performMultiObjectiveModelChecking(env, *mdp, formulas[formulaIndex]->asMultiObjectiveFormula());
         ASSERT_TRUE(result->isExplicitQualitativeCheckResult());
-        EXPECT_TRUE(result->asExplicitQualitativeCheckResult()[*mdp->getInitialStates().begin()]);
+        EXPECT_TRUE(result->template asExplicitQualitativeCheckResult<ValueType>()[*mdp->getInitialStates().begin()]);
     }
     ++formulaIndex;
     {
         auto result = storm::modelchecker::multiobjective::performMultiObjectiveModelChecking(env, *mdp, formulas[formulaIndex]->asMultiObjectiveFormula());
         ASSERT_TRUE(result->isExplicitQualitativeCheckResult());
-        EXPECT_FALSE(result->asExplicitQualitativeCheckResult()[*mdp->getInitialStates().begin()]);
+        EXPECT_FALSE(result->template asExplicitQualitativeCheckResult<ValueType>()[*mdp->getInitialStates().begin()]);
     }
     ++formulaIndex;
     {
@@ -292,7 +299,7 @@ TYPED_TEST(MultiObjectiveSchedRestModelCheckerTest, steps) {
     {
         auto result = storm::modelchecker::multiobjective::performMultiObjectiveModelChecking(env, *mdp, formulas[formulaIndex]->asMultiObjectiveFormula());
         ASSERT_TRUE(result->isExplicitQualitativeCheckResult());
-        EXPECT_FALSE(result->asExplicitQualitativeCheckResult()[*mdp->getInitialStates().begin()]);
+        EXPECT_FALSE(result->template asExplicitQualitativeCheckResult<ValueType>()[*mdp->getInitialStates().begin()]);
     }
 }
 
@@ -358,7 +365,7 @@ TYPED_TEST(MultiObjectiveSchedRestModelCheckerTest, mecs) {
         } else {
             auto result = storm::modelchecker::multiobjective::performMultiObjectiveModelChecking(env, *mdp, formulas[formulaIndex]->asMultiObjectiveFormula());
             ASSERT_TRUE(result->isExplicitQualitativeCheckResult());
-            EXPECT_TRUE(result->asExplicitQualitativeCheckResult()[*mdp->getInitialStates().begin()]);
+            EXPECT_TRUE(result->template asExplicitQualitativeCheckResult<ValueType>()[*mdp->getInitialStates().begin()]);
         }
     }
     ++formulaIndex;
@@ -370,7 +377,7 @@ TYPED_TEST(MultiObjectiveSchedRestModelCheckerTest, mecs) {
         } else {
             auto result = storm::modelchecker::multiobjective::performMultiObjectiveModelChecking(env, *mdp, formulas[formulaIndex]->asMultiObjectiveFormula());
             ASSERT_TRUE(result->isExplicitQualitativeCheckResult());
-            EXPECT_FALSE(result->asExplicitQualitativeCheckResult()[*mdp->getInitialStates().begin()]);
+            EXPECT_FALSE(result->template asExplicitQualitativeCheckResult<ValueType>()[*mdp->getInitialStates().begin()]);
         }
     }
 }
@@ -476,5 +483,3 @@ TYPED_TEST(MultiObjectiveSchedRestModelCheckerTest, infrew) {
 }
 
 }  // namespace
-
-#endif /* defined STORM_HAVE_Z3_OPTIMIZE */

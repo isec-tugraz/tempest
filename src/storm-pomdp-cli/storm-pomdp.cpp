@@ -19,7 +19,6 @@
 #include "storm-pomdp/transformer/GlobalPOMDPSelfLoopEliminator.h"
 #include "storm-pomdp/transformer/GlobalPomdpMecChoiceEliminator.h"
 #include "storm-pomdp/transformer/KnownProbabilityTransformer.h"
-#include "storm-pomdp/transformer/MakePOMDPCanonic.h"
 #include "storm-pomdp/transformer/PomdpMemoryUnfolder.h"
 #include "storm/analysis/GraphConditions.h"
 #include "storm/api/storm.h"
@@ -28,6 +27,7 @@
 #include "storm/modelchecker/results/ExplicitQualitativeCheckResult.h"
 #include "storm/settings/modules/DebugSettings.h"
 #include "storm/settings/modules/GeneralSettings.h"
+#include "storm/transformer/MakePOMDPCanonic.h"
 #include "storm/utility/NumberTraits.h"
 #include "storm/utility/SignalHandler.h"
 #include "storm/utility/Stopwatch.h"
@@ -273,7 +273,7 @@ bool performAnalysis(std::shared_ptr<storm::models::sparse::Pomdp<ValueType>> co
                                                                        storm::api::createTask<ValueType>(formula.asSharedPointer(), true));
         if (resultPtr) {
             auto result = resultPtr->template asExplicitQuantitativeCheckResult<ValueType>();
-            result.filter(storm::modelchecker::ExplicitQualitativeCheckResult(pomdp->getInitialStates()));
+            result.filter(storm::modelchecker::ExplicitQualitativeCheckResult<ValueType>(pomdp->getInitialStates()));
             if (storm::utility::resources::isTerminate()) {
                 STORM_PRINT_AND_LOG("\nResult till abort: ");
             } else {
