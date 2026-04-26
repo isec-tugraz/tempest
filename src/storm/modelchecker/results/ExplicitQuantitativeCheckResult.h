@@ -76,6 +76,11 @@ class ExplicitQuantitativeCheckResult : public QuantitativeCheckResult<ValueType
     storm::storage::Scheduler<ValueType> const& getScheduler() const;
     storm::storage::Scheduler<ValueType>& getScheduler();
 
+    bool hasChoiceValues() const;
+    std::vector<ValueType> const& getChoiceValues() const;
+    std::vector<ValueType>& getChoiceValues();
+    void setChoiceValues(std::vector<ValueType>&& choiceValues);
+
     storm::json<ValueType> toJson(std::optional<storm::storage::sparse::StateValuations> const& stateValuations = std::nullopt,
                                   std::optional<storm::models::sparse::StateLabeling> const& stateLabels = std::nullopt) const;
 
@@ -85,6 +90,9 @@ class ExplicitQuantitativeCheckResult : public QuantitativeCheckResult<ValueType
 
     // An optional scheduler that accompanies the values.
     boost::optional<std::shared_ptr<storm::storage::Scheduler<ValueType>>> scheduler;
+
+    // The values for each state and choice pair.
+    boost::optional<std::vector<ValueType>> choiceValues;
 };
 }  // namespace modelchecker
 }  // namespace storm

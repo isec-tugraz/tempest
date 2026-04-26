@@ -236,6 +236,28 @@ storm::storage::Scheduler<ValueType>& ExplicitQuantitativeCheckResult<ValueType>
 }
 
 template<typename ValueType>
+bool ExplicitQuantitativeCheckResult<ValueType>::hasChoiceValues() const {
+    return static_cast<bool>(choiceValues);
+}
+
+template<typename ValueType>
+std::vector<ValueType> const& ExplicitQuantitativeCheckResult<ValueType>::getChoiceValues() const {
+    STORM_LOG_THROW(this->hasChoiceValues(), storm::exceptions::InvalidOperationException, "Unable to retrieve non-existing choice values.");
+    return choiceValues.get();
+}
+
+template<typename ValueType>
+std::vector<ValueType>& ExplicitQuantitativeCheckResult<ValueType>::getChoiceValues() {
+    STORM_LOG_THROW(this->hasChoiceValues(), storm::exceptions::InvalidOperationException, "Unable to retrieve non-existing choice values.");
+    return choiceValues.get();
+}
+
+template<typename ValueType>
+void ExplicitQuantitativeCheckResult<ValueType>::setChoiceValues(std::vector<ValueType>&& choiceValues) {
+    this->choiceValues = std::move(choiceValues);
+}
+
+template<typename ValueType>
 void print(std::ostream& out, ValueType const& value) {
     if (value == storm::utility::infinity<ValueType>()) {
         out << "inf";
