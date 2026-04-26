@@ -7,6 +7,7 @@
 #include "storm/adapters/RationalFunctionForward.h"
 #include "storm/models/Model.h"
 #include "storm/models/ModelRepresentation.h"
+#include "storm/models/symbolic/StandardRewardModel.h"
 #include "storm/storage/dd/Add.h"
 #include "storm/storage/dd/Bdd.h"
 #include "storm/storage/dd/DdType.h"
@@ -31,9 +32,6 @@ class AddExpressionAdapter;
 
 namespace models {
 namespace symbolic {
-
-template<storm::dd::DdType Type, typename ValueType>
-class StandardRewardModel;
 
 /*!
  * Base class for all symbolic models.
