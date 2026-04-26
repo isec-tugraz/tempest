@@ -259,6 +259,8 @@ else()
     message(FATAL_ERROR "Unknown compiler '${CMAKE_CXX_COMPILER_ID}' is not supported")
 endif()
 set(STORM_COMPILER_VERSION ${CMAKE_CXX_COMPILER_VERSION})
+# Avoid Boost using deprecated std::unary_function
+add_compile_definitions(BOOST_NO_CXX98_FUNCTION_BASE)
 
 if(CCACHE_FOUND)
 	set(STORM_COMPILER_ID "${STORM_COMPILER_ID} (ccache)")
@@ -530,3 +532,5 @@ install(FILES ${PROJECT_BINARY_DIR}/stormConfigVersion.cmake DESTINATION ${STORM
 install(EXPORT storm_Targets FILE stormTargets.cmake DESTINATION ${STORM_CMAKE_INSTALL_DIR})
 
 include(StormCPackConfig.cmake)
+
+add_subdirectory(tests/smoke)
