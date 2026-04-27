@@ -18,6 +18,7 @@
 #include "storm/transformer/MakePOMDPCanonic.h"
 #include "storm/utility/macros.h"
 #include "storm/utility/vector.h"
+#include <span>
 
 namespace storm::umb {
 
