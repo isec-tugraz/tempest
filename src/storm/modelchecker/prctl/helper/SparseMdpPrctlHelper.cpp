@@ -790,12 +790,12 @@ MDPSparseModelCheckingHelperReturnType<SolutionType> SparseMdpPrctlHelper<ValueT
     }
     std::vector<SolutionType> choiceValues(transitionMatrix.getRowCount(), storm::utility::zero<SolutionType>());
 
-    if constexpr (std::is_same_v<ValueType, storm::Interval>) {
+    if constexpr (storm::IsIntervalType<ValueType>) {
         STORM_LOG_THROW(false, storm::exceptions::NotImplementedException, "We do not support the computation of choice values with interval models.");
     } else {
         if (env.modelchecker().getProduceChoiceValues()) {
             std::vector<ValueType> b = std::vector<ValueType>(transitionMatrix.getRowCount(), storm::utility::zero<ValueType>());
-            auto multiplier = storm::solver::MultiplierFactory<ValueType>().create(env, transitionMatrix);
+            auto multiplier = storm::solver::MultiplierFactory<ValueType, SolutionType>().create(env, transitionMatrix);
             multiplier->multiply(env, result, &b, choiceValues);
         }
     }
@@ -1486,11 +1486,11 @@ MDPSparseModelCheckingHelperReturnType<SolutionType> SparseMdpPrctlHelper<ValueT
         extendScheduler(*scheduler, goal, qualitativeStateSets, transitionMatrix, backwardTransitions, targetStates, zeroRewardChoicesGetter);
     }
 
-    std::vector<ValueType> choiceValues(transitionMatrix.getRowCount(), storm::utility::zero<ValueType>());
-    if constexpr (std::is_same_v<ValueType, storm::Interval>) {
+    std::vector<SolutionType> choiceValues(transitionMatrix.getRowCount(), storm::utility::zero<SolutionType>());
+    if constexpr (storm::IsIntervalType<ValueType>) {
       STORM_LOG_THROW(false, storm::exceptions::NotImplementedException, "We do not support the computation of choice values with interval models.");
     } else {
-      auto multiplier = storm::solver::MultiplierFactory<ValueType>().create(env, transitionMatrix);
+      auto multiplier = storm::solver::MultiplierFactory<ValueType, SolutionType>().create(env, transitionMatrix);
       if (env.modelchecker().getProduceChoiceValues()) {
         multiplier->multiply(env, result, nullptr, choiceValues);
       }
