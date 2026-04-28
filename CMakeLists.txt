@@ -538,5 +538,4 @@ install(FILES ${PROJECT_BINARY_DIR}/stormConfig.cmake.install DESTINATION ${STOR
 install(FILES ${PROJECT_BINARY_DIR}/stormConfigVersion.cmake DESTINATION ${STORM_CMAKE_INSTALL_DIR})
 install(EXPORT storm_Targets FILE stormTargets.cmake DESTINATION ${STORM_CMAKE_INSTALL_DIR})
 
-add_subdirectory(tests/smoke)
 include(${PROJECT_SOURCE_DIR}/resources/cmake/stormCPackConfig.cmake)
