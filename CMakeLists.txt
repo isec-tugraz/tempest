@@ -302,6 +302,7 @@ elseif (STORM_COMPILER_GCC)
 
 	# Do not warn about problems internally to GCC 12
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-stringop-overflow")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-redundant-move")
 endif ()
 #### We set more compiler flags in src/ which will not affect the subprojects/dependencies.
 
