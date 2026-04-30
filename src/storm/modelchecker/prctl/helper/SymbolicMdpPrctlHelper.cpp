@@ -1,12 +1,15 @@
 #include "storm/modelchecker/prctl/helper/SymbolicMdpPrctlHelper.h"
 
+#include <set>
+#include <utility>
+
 #include "storm/solver/SymbolicMinMaxLinearEquationSolver.h"
 
 #include "storm/storage/dd/Add.h"
 #include "storm/storage/dd/Bdd.h"
 #include "storm/storage/dd/DdManager.h"
-
 #include "storm/environment/Environment.h"
+#include "storm/environment/modelchecker/ModelCheckerEnvironment.h"
 
 #include "storm/utility/constants.h"
 #include "storm/utility/graph.h"
@@ -16,7 +19,6 @@
 #include "storm/modelchecker/results/SymbolicQualitativeCheckResult.h"
 #include "storm/modelchecker/results/SymbolicQuantitativeCheckResult.h"
 
-#include "storm/exceptions/InvalidArgumentException.h"
 #include "storm/exceptions/InvalidPropertyException.h"
 #include "storm/exceptions/UncheckedRequirementException.h"
 
@@ -25,6 +27,36 @@ namespace modelchecker {
 namespace helper {
 
 enum class EquationSystemType { UntilProbabilities, ExpectedRewards };
+
+template<storm::dd::DdType DdType, typename ValueType>
+std::set<storm::expressions::Variable> getActionLabelVariables(storm::models::symbolic::NondeterministicModel<DdType, ValueType> const& model) {
+    std::set<storm::expressions::Variable> result;
+    for (auto const& variable : model.getNondeterminismVariables()) {
+        if (variable.getName().find("nondet") != 0) {
+            result.insert(variable);
+        }
+    }
+    return result;
+}
+
+template<storm::dd::DdType DdType, typename ValueType>
+storm::dd::Add<DdType, ValueType> constructShieldMaskAdd(storm::models::symbolic::NondeterministicModel<DdType, ValueType> const& model,
+                                                         storm::dd::Add<DdType, ValueType> const& transitionMatrix,
+                                                         storm::dd::Add<DdType, ValueType> const& choiceValues, ValueType const& threshold) {
+    storm::dd::Bdd<DdType> validStateChoices = transitionMatrix.notZero().existsAbstract(model.getColumnVariables());
+    storm::dd::Bdd<DdType> safeStateChoices = choiceValues.greaterOrEqual(threshold) && validStateChoices;
+    storm::dd::Add<DdType, ValueType> result = model.getManager().template getAddZero<ValueType>();
+
+    ValueType bitValue = storm::utility::one<ValueType>();
+    for (auto const& actionVariable : getActionLabelVariables(model)) {
+        storm::dd::Bdd<DdType> safeStatesForAction =
+            (safeStateChoices && model.getManager().getEncoding(actionVariable, 1)).existsAbstract(model.getNondeterminismVariables());
+        result += safeStatesForAction.template toAdd<ValueType>() * model.getManager().getConstant(bitValue);
+        bitValue *= storm::utility::convertNumber<ValueType, uint64_t>(2);
+    }
+
+    return result;
+}
 
 template<storm::dd::DdType DdType, typename ValueType>
 storm::dd::Bdd<DdType> computeValidSchedulerHint(EquationSystemType const& type, storm::models::symbolic::NondeterministicModel<DdType, ValueType> const& model,
@@ -100,9 +132,18 @@ std::unique_ptr<CheckResult> SymbolicMdpPrctlHelper<DdType, ValueType>::computeU
 
     storm::dd::Add<DdType, ValueType> result =
         solver->solveEquations(env, dir, startValues ? startValues.get() : maybeStatesAdd.getDdManager().template getAddZero<ValueType>(), subvector);
+    storm::dd::Add<DdType, ValueType> fullResult = statesWithProbability1.template toAdd<ValueType>() + result;
 
-    return std::unique_ptr<CheckResult>(new storm::modelchecker::SymbolicQuantitativeCheckResult<DdType, ValueType>(
-        model.getReachableStates(), statesWithProbability1.template toAdd<ValueType>() + result));
+    auto checkResult = std::make_unique<storm::modelchecker::SymbolicQuantitativeCheckResult<DdType, ValueType>>(model.getReachableStates(), fullResult);
+    if (env.modelchecker().getProduceChoiceValues()) {
+        storm::dd::Add<DdType, ValueType> fullResultAsColumn = fullResult.swapVariables(model.getRowColumnMetaVariablePairs());
+        storm::dd::Add<DdType, ValueType> choiceValues = transitionMatrix.multiplyMatrix(fullResultAsColumn, model.getColumnVariables());
+        storm::dd::Add<DdType, ValueType> shieldMask =
+            constructShieldMaskAdd(model, transitionMatrix, choiceValues, storm::utility::convertNumber<ValueType>(0.5));
+        checkResult->setShieldMask(std::move(shieldMask));
+        checkResult->setChoiceValues(std::move(choiceValues));
+    }
+    return checkResult;
 }
 
 template<storm::dd::DdType DdType, typename ValueType>
@@ -127,10 +168,19 @@ std::unique_ptr<CheckResult> SymbolicMdpPrctlHelper<DdType, ValueType>::computeU
     // Check whether we need to compute exact probabilities for some states.
     if (qualitative) {
         // Set the values for all maybe-states to 0.5 to indicate that their probability values are neither 0 nor 1.
-        return std::unique_ptr<CheckResult>(new storm::modelchecker::SymbolicQuantitativeCheckResult<DdType, ValueType>(
-            model.getReachableStates(),
+        storm::dd::Add<DdType, ValueType> fullResult =
             statesWithProbability01.second.template toAdd<ValueType>() +
-                maybeStates.template toAdd<ValueType>() * model.getManager().getConstant(storm::utility::convertNumber<ValueType>(0.5))));
+            maybeStates.template toAdd<ValueType>() * model.getManager().getConstant(storm::utility::convertNumber<ValueType>(0.5));
+        auto checkResult = std::make_unique<storm::modelchecker::SymbolicQuantitativeCheckResult<DdType, ValueType>>(model.getReachableStates(), fullResult);
+        if (env.modelchecker().getProduceChoiceValues()) {
+            storm::dd::Add<DdType, ValueType> fullResultAsColumn = fullResult.swapVariables(model.getRowColumnMetaVariablePairs());
+            storm::dd::Add<DdType, ValueType> choiceValues = transitionMatrix.multiplyMatrix(fullResultAsColumn, model.getColumnVariables());
+            storm::dd::Add<DdType, ValueType> shieldMask =
+                constructShieldMaskAdd(model, transitionMatrix, choiceValues, storm::utility::convertNumber<ValueType>(0.5));
+            checkResult->setShieldMask(std::move(shieldMask));
+            checkResult->setChoiceValues(std::move(choiceValues));
+        }
+        return checkResult;
     } else {
         // If there are maybe states, we need to solve an equation system.
         if (!maybeStates.isZero()) {
@@ -138,8 +188,17 @@ std::unique_ptr<CheckResult> SymbolicMdpPrctlHelper<DdType, ValueType>::computeU
                                              startValues ? maybeStates.ite(startValues.get(), model.getManager().template getAddZero<ValueType>())
                                                          : model.getManager().template getAddZero<ValueType>());
         } else {
-            return std::unique_ptr<CheckResult>(new storm::modelchecker::SymbolicQuantitativeCheckResult<DdType, ValueType>(
-                model.getReachableStates(), statesWithProbability01.second.template toAdd<ValueType>()));
+            storm::dd::Add<DdType, ValueType> fullResult = statesWithProbability01.second.template toAdd<ValueType>();
+            auto checkResult = std::make_unique<storm::modelchecker::SymbolicQuantitativeCheckResult<DdType, ValueType>>(model.getReachableStates(), fullResult);
+            if (env.modelchecker().getProduceChoiceValues()) {
+                storm::dd::Add<DdType, ValueType> fullResultAsColumn = fullResult.swapVariables(model.getRowColumnMetaVariablePairs());
+                storm::dd::Add<DdType, ValueType> choiceValues = transitionMatrix.multiplyMatrix(fullResultAsColumn, model.getColumnVariables());
+                storm::dd::Add<DdType, ValueType> shieldMask =
+                    constructShieldMaskAdd(model, transitionMatrix, choiceValues, storm::utility::convertNumber<ValueType>(0.5));
+                checkResult->setShieldMask(std::move(shieldMask));
+                checkResult->setChoiceValues(std::move(choiceValues));
+            }
+            return checkResult;
         }
     }
 }
