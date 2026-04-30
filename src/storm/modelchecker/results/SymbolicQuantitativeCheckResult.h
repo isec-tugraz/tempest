@@ -1,6 +1,8 @@
 #ifndef STORM_MODELCHECKER_SYMBOLICQUANTITATIVECHECKRESULT_H_
 #define STORM_MODELCHECKER_SYMBOLICQUANTITATIVECHECKRESULT_H_
 
+#include <boost/optional.hpp>
+
 #include "storm/modelchecker/results/QuantitativeCheckResult.h"
 #include "storm/storage/dd/Add.h"
 #include "storm/storage/dd/DdType.h"
@@ -37,6 +39,14 @@ class SymbolicQuantitativeCheckResult : public QuantitativeCheckResult<ValueType
     storm::dd::Add<Type, ValueType> const& getValueVector() const;
     storm::dd::Bdd<Type> const& getStates() const;
     storm::dd::Bdd<Type> const& getReachableStates() const;
+    bool hasChoiceValues() const;
+    storm::dd::Add<Type, ValueType> const& getChoiceValues() const;
+    storm::dd::Add<Type, ValueType>& getChoiceValues();
+    void setChoiceValues(storm::dd::Add<Type, ValueType>&& choiceValues);
+    bool hasShieldMask() const;
+    storm::dd::Add<Type, ValueType> const& getShieldMask() const;
+    storm::dd::Add<Type, ValueType>& getShieldMask();
+    void setShieldMask(storm::dd::Add<Type, ValueType>&& shieldMask);
 
     virtual std::ostream& writeToStream(std::ostream& out) const override;
 
@@ -63,6 +73,12 @@ class SymbolicQuantitativeCheckResult : public QuantitativeCheckResult<ValueType
 
     // The values of the quantitative check result.
     storm::dd::Add<Type, ValueType> values;
+
+    // The values for each state and choice pair.
+    boost::optional<storm::dd::Add<Type, ValueType>> choiceValues;
+
+    // The state-to-action-bitmask ADD derived from the choice values.
+    boost::optional<storm::dd::Add<Type, ValueType>> shieldMask;
 };
 }  // namespace modelchecker
 }  // namespace storm

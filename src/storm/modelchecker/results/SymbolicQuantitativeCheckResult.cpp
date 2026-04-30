@@ -81,6 +81,50 @@ storm::dd::Bdd<Type> const& SymbolicQuantitativeCheckResult<Type, ValueType>::ge
     return reachableStates;
 }
 
+template<storm::dd::DdType Type, typename ValueType>
+bool SymbolicQuantitativeCheckResult<Type, ValueType>::hasChoiceValues() const {
+    return static_cast<bool>(choiceValues);
+}
+
+template<storm::dd::DdType Type, typename ValueType>
+storm::dd::Add<Type, ValueType> const& SymbolicQuantitativeCheckResult<Type, ValueType>::getChoiceValues() const {
+    STORM_LOG_THROW(this->hasChoiceValues(), storm::exceptions::InvalidOperationException, "Unable to retrieve non-existing choice values.");
+    return choiceValues.get();
+}
+
+template<storm::dd::DdType Type, typename ValueType>
+storm::dd::Add<Type, ValueType>& SymbolicQuantitativeCheckResult<Type, ValueType>::getChoiceValues() {
+    STORM_LOG_THROW(this->hasChoiceValues(), storm::exceptions::InvalidOperationException, "Unable to retrieve non-existing choice values.");
+    return choiceValues.get();
+}
+
+template<storm::dd::DdType Type, typename ValueType>
+void SymbolicQuantitativeCheckResult<Type, ValueType>::setChoiceValues(storm::dd::Add<Type, ValueType>&& choiceValues) {
+    this->choiceValues = std::move(choiceValues);
+}
+
+template<storm::dd::DdType Type, typename ValueType>
+bool SymbolicQuantitativeCheckResult<Type, ValueType>::hasShieldMask() const {
+    return static_cast<bool>(shieldMask);
+}
+
+template<storm::dd::DdType Type, typename ValueType>
+storm::dd::Add<Type, ValueType> const& SymbolicQuantitativeCheckResult<Type, ValueType>::getShieldMask() const {
+    STORM_LOG_THROW(this->hasShieldMask(), storm::exceptions::InvalidOperationException, "Unable to retrieve non-existing shield mask.");
+    return shieldMask.get();
+}
+
+template<storm::dd::DdType Type, typename ValueType>
+storm::dd::Add<Type, ValueType>& SymbolicQuantitativeCheckResult<Type, ValueType>::getShieldMask() {
+    STORM_LOG_THROW(this->hasShieldMask(), storm::exceptions::InvalidOperationException, "Unable to retrieve non-existing shield mask.");
+    return shieldMask.get();
+}
+
+template<storm::dd::DdType Type, typename ValueType>
+void SymbolicQuantitativeCheckResult<Type, ValueType>::setShieldMask(storm::dd::Add<Type, ValueType>&& shieldMask) {
+    this->shieldMask = std::move(shieldMask);
+}
+
 template<typename ValueType>
 void print(std::ostream& out, ValueType const& value) {
     if (value == storm::utility::infinity<ValueType>()) {
