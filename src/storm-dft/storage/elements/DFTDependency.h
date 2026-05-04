@@ -1,6 +1,8 @@
 #pragma once
 
+#include "storm/adapters/RationalFunctionAdapter.h"
 #include "DFTElement.h"
+
 
 namespace storm::dft {
 namespace storage {
