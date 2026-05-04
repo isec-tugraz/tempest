@@ -3,7 +3,6 @@
 #include <array>
 #include <cstring>
 #include <fstream>
-#include <span>
 
 #include "storm/storage/BitVector.h"
 #include "storm/utility/bitoperations.h"
