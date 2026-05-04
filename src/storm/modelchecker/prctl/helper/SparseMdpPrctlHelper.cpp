@@ -794,9 +794,8 @@ MDPSparseModelCheckingHelperReturnType<SolutionType> SparseMdpPrctlHelper<ValueT
         STORM_LOG_THROW(false, storm::exceptions::NotImplementedException, "We do not support the computation of choice values with interval models.");
     } else {
         if (env.modelchecker().getProduceChoiceValues()) {
-            std::vector<ValueType> b = std::vector<ValueType>(transitionMatrix.getRowCount(), storm::utility::zero<ValueType>());
             auto multiplier = storm::solver::MultiplierFactory<ValueType, SolutionType>().create(env, transitionMatrix);
-            multiplier->multiply(env, result, &b, choiceValues);
+            multiplier->multiply(env, result, nullptr, choiceValues);
         }
     }
 
