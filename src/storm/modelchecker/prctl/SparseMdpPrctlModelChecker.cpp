@@ -20,6 +20,7 @@
 #include "storm/modelchecker/results/ExplicitQualitativeCheckResult.h"
 #include "storm/modelchecker/results/ExplicitQuantitativeCheckResult.h"
 #include "storm/modelchecker/results/LexicographicCheckResult.h"
+#include "storm/solver/multiplier/Multiplier.h"
 #include "storm/solver/SolveGoal.h"
 #include "storm/utility/FilteredRewardModel.h"
 #include "storm/utility/graph.h"
@@ -144,14 +145,32 @@ std::unique_ptr<CheckResult> SparseMdpPrctlModelChecker<SparseMdpModelType>::com
         std::unique_ptr<CheckResult> rightResultPointer = this->check(env, pathFormula.getRightSubformula());
         ExplicitQualitativeCheckResult<SolutionType> const& leftResult = leftResultPointer->template asExplicitQualitativeCheckResult<SolutionType>();
         ExplicitQualitativeCheckResult<SolutionType> const& rightResult = rightResultPointer->template asExplicitQualitativeCheckResult<SolutionType>();
+        bool const produceChoiceValues = env.modelchecker().getProduceChoiceValues();
+        if (produceChoiceValues) {
+            STORM_LOG_THROW(pathFormula.getNonStrictLowerBound<uint64_t>() == 0, storm::exceptions::InvalidOperationException,
+                            "Producing choice values for bounded until is only supported when the lower bound is 0.");
+        }
+        uint64_t const lowerBound = pathFormula.getNonStrictLowerBound<uint64_t>();
+        uint64_t const upperBound = pathFormula.getNonStrictUpperBound<uint64_t>();
         storm::modelchecker::helper::SparseNondeterministicStepBoundedHorizonHelper<ValueType, SolutionType> helper;
         std::vector<SolutionType> numericResult =
             helper.compute(env, storm::solver::SolveGoal<ValueType, SolutionType>(this->getModel(), checkTask), this->getModel().getTransitionMatrix(),
                            this->getModel().getBackwardTransitions(), leftResult.getTruthValuesVector(), rightResult.getTruthValuesVector(),
-                           pathFormula.getNonStrictLowerBound<uint64_t>(), pathFormula.getNonStrictUpperBound<uint64_t>(), checkTask.getHint());
-        return std::unique_ptr<CheckResult>(new ExplicitQuantitativeCheckResult<SolutionType>(std::move(numericResult)));
+                           lowerBound, produceChoiceValues ? upperBound - 1 : upperBound, checkTask.getHint());
+        std::unique_ptr<CheckResult> result(new ExplicitQuantitativeCheckResult<SolutionType>(std::move(numericResult)));
+        if (produceChoiceValues) {
+            if constexpr (!storm::IsIntervalType<ValueType>) {
+                auto const& stateValues = result->asExplicitQuantitativeCheckResult<SolutionType>().getValueVector();
+                auto multiplier = storm::solver::MultiplierFactory<ValueType, SolutionType>().create(env, this->getModel().getTransitionMatrix());
+                std::vector<SolutionType> choiceValues(this->getModel().getTransitionMatrix().getRowCount(), storm::utility::zero<SolutionType>());
+                multiplier->multiply(env, stateValues, nullptr, choiceValues);
+                result->asExplicitQuantitativeCheckResult<SolutionType>().setChoiceValues(std::move(choiceValues));
+            }
+        }
+        return result;
     }
 }
+
 
 template<typename SparseMdpModelType>
 std::unique_ptr<CheckResult> SparseMdpPrctlModelChecker<SparseMdpModelType>::computeNextProbabilities(
