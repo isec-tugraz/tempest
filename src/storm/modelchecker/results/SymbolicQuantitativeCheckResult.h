@@ -1,13 +1,22 @@
 #ifndef STORM_MODELCHECKER_SYMBOLICQUANTITATIVECHECKRESULT_H_
 #define STORM_MODELCHECKER_SYMBOLICQUANTITATIVECHECKRESULT_H_
 
+#include <set>
+
 #include <boost/optional.hpp>
 
 #include "storm/modelchecker/results/QuantitativeCheckResult.h"
 #include "storm/storage/dd/Add.h"
 #include "storm/storage/dd/DdType.h"
+#include "storm/storage/expressions/Variable.h"
 
 namespace storm {
+namespace models {
+namespace symbolic {
+template<storm::dd::DdType Type, typename ValueType>
+class NondeterministicModel;
+}
+}  // namespace models
 namespace modelchecker {
 // fwd
 template<storm::dd::DdType Type>
@@ -47,6 +56,16 @@ class SymbolicQuantitativeCheckResult : public QuantitativeCheckResult<ValueType
     storm::dd::Add<Type, ValueType> const& getShieldMask() const;
     storm::dd::Add<Type, ValueType>& getShieldMask();
     void setShieldMask(storm::dd::Add<Type, ValueType>&& shieldMask);
+    storm::dd::Add<Type, ValueType> computeShieldMask(storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model,
+                                                      storm::dd::Add<Type, ValueType> const& transitionMatrix, ValueType const& threshold) const;
+    storm::dd::Add<Type, ValueType> computeShieldMask(storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model,
+                                                      ValueType const& threshold) const;
+    void computeAndSetShieldMask(storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model,
+                                 storm::dd::Add<Type, ValueType> const& transitionMatrix, ValueType const& threshold);
+    void computeAndSetShieldMask(storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model, ValueType const& threshold);
+    static storm::dd::Add<Type, ValueType> constructShieldMaskAdd(storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model,
+                                                                  storm::dd::Add<Type, ValueType> const& transitionMatrix,
+                                                                  storm::dd::Add<Type, ValueType> const& choiceValues, ValueType const& threshold);
 
     virtual std::ostream& writeToStream(std::ostream& out) const override;
 
@@ -61,6 +80,9 @@ class SymbolicQuantitativeCheckResult : public QuantitativeCheckResult<ValueType
     virtual void oneMinus() override;
 
    private:
+    static std::set<storm::expressions::Variable> getActionLabelVariables(
+        storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model);
+
     bool hasValueType(std::type_info const& t) const override {
         return t == typeid(ValueType);
     }

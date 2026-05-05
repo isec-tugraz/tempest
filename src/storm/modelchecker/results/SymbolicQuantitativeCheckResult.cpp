@@ -3,6 +3,7 @@
 #include "storm/adapters/RationalFunctionAdapter.h"
 #include "storm/exceptions/InvalidOperationException.h"
 #include "storm/modelchecker/results/SymbolicQualitativeCheckResult.h"
+#include "storm/models/symbolic/NondeterministicModel.h"
 #include "storm/storage/dd/DdManager.h"
 #include "storm/utility/constants.h"
 #include "storm/utility/macros.h"
@@ -28,6 +29,37 @@ template<storm::dd::DdType Type, typename ValueType>
 SymbolicQuantitativeCheckResult<Type, ValueType>::SymbolicQuantitativeCheckResult(SymbolicQualitativeCheckResult<Type> const& other)
     : reachableStates(other.getReachableStates()), states(other.getStates()), values(other.getTruthValuesVector().template toAdd<ValueType>()) {
     // Intentionally left empty.
+}
+
+template<storm::dd::DdType Type, typename ValueType>
+std::set<storm::expressions::Variable> SymbolicQuantitativeCheckResult<Type, ValueType>::getActionLabelVariables(
+    storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model) {
+    std::set<storm::expressions::Variable> result;
+    for (auto const& variable : model.getNondeterminismVariables()) {
+        if (variable.getName().find("nondet") != 0) {
+            result.insert(variable);
+        }
+    }
+    return result;
+}
+
+template<storm::dd::DdType Type, typename ValueType>
+storm::dd::Add<Type, ValueType> SymbolicQuantitativeCheckResult<Type, ValueType>::constructShieldMaskAdd(
+    storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model, storm::dd::Add<Type, ValueType> const& transitionMatrix,
+    storm::dd::Add<Type, ValueType> const& choiceValues, ValueType const& threshold) {
+    storm::dd::Bdd<Type> validStateChoices = transitionMatrix.notZero().existsAbstract(model.getColumnVariables());
+    storm::dd::Bdd<Type> safeStateChoices = choiceValues.greaterOrEqual(threshold) && validStateChoices;
+    storm::dd::Add<Type, ValueType> result = model.getManager().template getAddZero<ValueType>();
+
+    ValueType bitValue = storm::utility::one<ValueType>();
+    for (auto const& actionVariable : getActionLabelVariables(model)) {
+        storm::dd::Bdd<Type> safeStatesForAction =
+            (safeStateChoices && model.getManager().getEncoding(actionVariable, 1)).existsAbstract(model.getNondeterminismVariables());
+        result += safeStatesForAction.template toAdd<ValueType>() * model.getManager().getConstant(bitValue);
+        bitValue *= storm::utility::convertNumber<ValueType, uint64_t>(2);
+    }
+
+    return result;
 }
 
 template<storm::dd::DdType Type, typename ValueType>
@@ -123,6 +155,32 @@ storm::dd::Add<Type, ValueType>& SymbolicQuantitativeCheckResult<Type, ValueType
 template<storm::dd::DdType Type, typename ValueType>
 void SymbolicQuantitativeCheckResult<Type, ValueType>::setShieldMask(storm::dd::Add<Type, ValueType>&& shieldMask) {
     this->shieldMask = std::move(shieldMask);
+}
+
+template<storm::dd::DdType Type, typename ValueType>
+storm::dd::Add<Type, ValueType> SymbolicQuantitativeCheckResult<Type, ValueType>::computeShieldMask(
+    storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model, storm::dd::Add<Type, ValueType> const& transitionMatrix,
+    ValueType const& threshold) const {
+    return constructShieldMaskAdd(model, transitionMatrix, this->getChoiceValues(), threshold);
+}
+
+template<storm::dd::DdType Type, typename ValueType>
+storm::dd::Add<Type, ValueType> SymbolicQuantitativeCheckResult<Type, ValueType>::computeShieldMask(
+    storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model, ValueType const& threshold) const {
+    return this->computeShieldMask(model, model.getTransitionMatrix(), threshold);
+}
+
+template<storm::dd::DdType Type, typename ValueType>
+void SymbolicQuantitativeCheckResult<Type, ValueType>::computeAndSetShieldMask(
+    storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model, storm::dd::Add<Type, ValueType> const& transitionMatrix,
+    ValueType const& threshold) {
+    this->setShieldMask(this->computeShieldMask(model, transitionMatrix, threshold));
+}
+
+template<storm::dd::DdType Type, typename ValueType>
+void SymbolicQuantitativeCheckResult<Type, ValueType>::computeAndSetShieldMask(
+    storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model, ValueType const& threshold) {
+    this->setShieldMask(this->computeShieldMask(model, threshold));
 }
 
 template<typename ValueType>
