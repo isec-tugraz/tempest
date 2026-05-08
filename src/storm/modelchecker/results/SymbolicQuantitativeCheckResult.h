@@ -52,20 +52,9 @@ class SymbolicQuantitativeCheckResult : public QuantitativeCheckResult<ValueType
     storm::dd::Add<Type, ValueType> const& getChoiceValues() const;
     storm::dd::Add<Type, ValueType>& getChoiceValues();
     void setChoiceValues(storm::dd::Add<Type, ValueType>&& choiceValues);
-    bool hasShieldMask() const;
-    storm::dd::Add<Type, ValueType> const& getShieldMask() const;
-    storm::dd::Add<Type, ValueType>& getShieldMask();
-    void setShieldMask(storm::dd::Add<Type, ValueType>&& shieldMask);
-    storm::dd::Add<Type, ValueType> computeShieldMask(storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model,
-                                                      storm::dd::Add<Type, ValueType> const& transitionMatrix, ValueType const& threshold) const;
-    storm::dd::Add<Type, ValueType> computeShieldMask(storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model,
-                                                      ValueType const& threshold) const;
-    void computeAndSetShieldMask(storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model,
-                                 storm::dd::Add<Type, ValueType> const& transitionMatrix, ValueType const& threshold);
-    void computeAndSetShieldMask(storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model, ValueType const& threshold);
-    static storm::dd::Add<Type, ValueType> constructShieldMaskAdd(storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model,
-                                                                  storm::dd::Add<Type, ValueType> const& transitionMatrix,
-                                                                  storm::dd::Add<Type, ValueType> const& choiceValues, ValueType const& threshold);
+    static storm::dd::Add<Type, ValueType> computeMaskAdd(storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model,
+                                                          storm::dd::Add<Type, ValueType> const& transitionMatrix,
+                                                          storm::dd::Add<Type, ValueType> const& choiceValues, ValueType const& threshold);
 
     virtual std::ostream& writeToStream(std::ostream& out) const override;
 
@@ -98,9 +87,6 @@ class SymbolicQuantitativeCheckResult : public QuantitativeCheckResult<ValueType
 
     // The values for each state and choice pair.
     boost::optional<storm::dd::Add<Type, ValueType>> choiceValues;
-
-    // The state-to-action-bitmask ADD derived from the choice values.
-    boost::optional<storm::dd::Add<Type, ValueType>> shieldMask;
 };
 }  // namespace modelchecker
 }  // namespace storm

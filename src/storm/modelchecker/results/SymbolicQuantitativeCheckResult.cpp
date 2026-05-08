@@ -44,7 +44,7 @@ std::set<storm::expressions::Variable> SymbolicQuantitativeCheckResult<Type, Val
 }
 
 template<storm::dd::DdType Type, typename ValueType>
-storm::dd::Add<Type, ValueType> SymbolicQuantitativeCheckResult<Type, ValueType>::constructShieldMaskAdd(
+storm::dd::Add<Type, ValueType> SymbolicQuantitativeCheckResult<Type, ValueType>::computeMaskAdd(
     storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model, storm::dd::Add<Type, ValueType> const& transitionMatrix,
     storm::dd::Add<Type, ValueType> const& choiceValues, ValueType const& threshold) {
     storm::dd::Bdd<Type> validStateChoices = transitionMatrix.notZero().existsAbstract(model.getColumnVariables());
@@ -133,54 +133,6 @@ storm::dd::Add<Type, ValueType>& SymbolicQuantitativeCheckResult<Type, ValueType
 template<storm::dd::DdType Type, typename ValueType>
 void SymbolicQuantitativeCheckResult<Type, ValueType>::setChoiceValues(storm::dd::Add<Type, ValueType>&& choiceValues) {
     this->choiceValues = std::move(choiceValues);
-}
-
-template<storm::dd::DdType Type, typename ValueType>
-bool SymbolicQuantitativeCheckResult<Type, ValueType>::hasShieldMask() const {
-    return static_cast<bool>(shieldMask);
-}
-
-template<storm::dd::DdType Type, typename ValueType>
-storm::dd::Add<Type, ValueType> const& SymbolicQuantitativeCheckResult<Type, ValueType>::getShieldMask() const {
-    STORM_LOG_THROW(this->hasShieldMask(), storm::exceptions::InvalidOperationException, "Unable to retrieve non-existing shield mask.");
-    return shieldMask.get();
-}
-
-template<storm::dd::DdType Type, typename ValueType>
-storm::dd::Add<Type, ValueType>& SymbolicQuantitativeCheckResult<Type, ValueType>::getShieldMask() {
-    STORM_LOG_THROW(this->hasShieldMask(), storm::exceptions::InvalidOperationException, "Unable to retrieve non-existing shield mask.");
-    return shieldMask.get();
-}
-
-template<storm::dd::DdType Type, typename ValueType>
-void SymbolicQuantitativeCheckResult<Type, ValueType>::setShieldMask(storm::dd::Add<Type, ValueType>&& shieldMask) {
-    this->shieldMask = std::move(shieldMask);
-}
-
-template<storm::dd::DdType Type, typename ValueType>
-storm::dd::Add<Type, ValueType> SymbolicQuantitativeCheckResult<Type, ValueType>::computeShieldMask(
-    storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model, storm::dd::Add<Type, ValueType> const& transitionMatrix,
-    ValueType const& threshold) const {
-    return constructShieldMaskAdd(model, transitionMatrix, this->getChoiceValues(), threshold);
-}
-
-template<storm::dd::DdType Type, typename ValueType>
-storm::dd::Add<Type, ValueType> SymbolicQuantitativeCheckResult<Type, ValueType>::computeShieldMask(
-    storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model, ValueType const& threshold) const {
-    return this->computeShieldMask(model, model.getTransitionMatrix(), threshold);
-}
-
-template<storm::dd::DdType Type, typename ValueType>
-void SymbolicQuantitativeCheckResult<Type, ValueType>::computeAndSetShieldMask(
-    storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model, storm::dd::Add<Type, ValueType> const& transitionMatrix,
-    ValueType const& threshold) {
-    this->setShieldMask(this->computeShieldMask(model, transitionMatrix, threshold));
-}
-
-template<storm::dd::DdType Type, typename ValueType>
-void SymbolicQuantitativeCheckResult<Type, ValueType>::computeAndSetShieldMask(
-    storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model, ValueType const& threshold) {
-    this->setShieldMask(this->computeShieldMask(model, threshold));
 }
 
 template<typename ValueType>

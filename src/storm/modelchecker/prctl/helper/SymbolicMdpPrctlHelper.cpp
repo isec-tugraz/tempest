@@ -1,7 +1,5 @@
 #include "storm/modelchecker/prctl/helper/SymbolicMdpPrctlHelper.h"
 
-#include <utility>
-
 #include "storm/solver/SymbolicMinMaxLinearEquationSolver.h"
 
 #include "storm/storage/dd/Add.h"
@@ -134,16 +132,9 @@ std::unique_ptr<CheckResult> SymbolicMdpPrctlHelper<DdType, ValueType>::computeU
     // Check whether we need to compute exact probabilities for some states.
     if (qualitative) {
         // Set the values for all maybe-states to 0.5 to indicate that their probability values are neither 0 nor 1.
-        storm::dd::Add<DdType, ValueType> fullResult =
-            statesWithProbability01.second.template toAdd<ValueType>() +
-            maybeStates.template toAdd<ValueType>() * model.getManager().getConstant(storm::utility::convertNumber<ValueType>(0.5));
-        auto checkResult = std::make_unique<storm::modelchecker::SymbolicQuantitativeCheckResult<DdType, ValueType>>(model.getReachableStates(), fullResult);
-        if (env.modelchecker().getProduceChoiceValues()) {
-            storm::dd::Add<DdType, ValueType> fullResultAsColumn = fullResult.swapVariables(model.getRowColumnMetaVariablePairs());
-            storm::dd::Add<DdType, ValueType> choiceValues = transitionMatrix.multiplyMatrix(fullResultAsColumn, model.getColumnVariables());
-            checkResult->setChoiceValues(std::move(choiceValues));
-        }
-        return checkResult;
+        return std::unique_ptr<CheckResult>(new storm::modelchecker::SymbolicQuantitativeCheckResult<DdType, ValueType>(
+            model.getReachableStates(), statesWithProbability01.second.template toAdd<ValueType>() +
+                maybeStates.template toAdd<ValueType>() * model.getManager().getConstant(storm::utility::convertNumber<ValueType>(0.5))));
     } else {
         // If there are maybe states, we need to solve an equation system.
         if (!maybeStates.isZero()) {
