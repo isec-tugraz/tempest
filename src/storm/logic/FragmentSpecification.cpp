@@ -68,12 +68,16 @@ FragmentSpecification flatPctl() {
 FragmentSpecification rpatl() {
     FragmentSpecification rpatl = propositional();
 
-    // TODO: Only allow OperatorFormulas when they are inside of a GameFormula?
-    // TODO: Require that operator formulas are required at the top level of a GameFormula?
     rpatl.setGameFormulasAllowed(true);
+    rpatl.setProbabilityOperatorsAllowed(true);
     rpatl.setRewardOperatorsAllowed(true);
-    rpatl.setLongRunAverageRewardFormulasAllowed(true);
     rpatl.setLongRunAverageOperatorsAllowed(true);
+    rpatl.setLongRunAverageRewardFormulasAllowed(true);
+    rpatl.setUntilFormulasAllowed(true);
+    rpatl.setGloballyFormulasAllowed(true);
+    rpatl.setNextFormulasAllowed(true);
+    rpatl.setBoundedUntilFormulasAllowed(true);
+    rpatl.setReachabilityProbabilityFormulasAllowed(true);
 
     return rpatl;
 }
