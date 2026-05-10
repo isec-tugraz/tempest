@@ -3,6 +3,7 @@
 #include "storm/modelchecker/propositional/SparsePropositionalModelChecker.h"
 #include "storm/models/sparse/Smg.h"
 #include "storm/solver/LinearEquationSolver.h"
+#include "storm/storage/BitVector.h"
 #include "storm/storage/StronglyConnectedComponent.h"
 #include "storm/utility/solver.h"
 
@@ -23,14 +24,36 @@ class SparseSmgRpatlModelChecker : public SparsePropositionalModelChecker<Sparse
      */
     static bool canHandleStatic(CheckTask<storm::logic::Formula, ValueType> const& checkTask, bool* requiresSingleInitialState = nullptr);
 
-    // The implemented methods of the AbstractModelChecker interface.
-    virtual bool canHandle(CheckTask<storm::logic::Formula, ValueType> const& checkTask) const override;
-    virtual std::unique_ptr<CheckResult> checkGameFormula(Environment const& env, CheckTask<storm::logic::GameFormula, ValueType> const& checkTask) override;
+    bool canHandle(CheckTask<storm::logic::Formula, ValueType> const& checkTask) const override;
 
-    virtual std::unique_ptr<CheckResult> computeLongRunAverageProbabilities(Environment const& env,
-                                                                            CheckTask<storm::logic::StateFormula, ValueType> const& checkTask) override;
-    virtual std::unique_ptr<CheckResult> computeLongRunAverageRewards(
-        Environment const& env, CheckTask<storm::logic::LongRunAverageRewardFormula, ValueType> const& checkTask) override;
+    std::unique_ptr<CheckResult> checkGameFormula(Environment const& env, CheckTask<storm::logic::GameFormula, ValueType> const& checkTask) override;
+    std::unique_ptr<CheckResult> checkProbabilityOperatorFormula(Environment const& env,
+                                                                 CheckTask<storm::logic::ProbabilityOperatorFormula, ValueType> const& checkTask) override;
+    std::unique_ptr<CheckResult> checkRewardOperatorFormula(Environment const& env,
+                                                            CheckTask<storm::logic::RewardOperatorFormula, ValueType> const& checkTask) override;
+    std::unique_ptr<CheckResult> checkLongRunAverageOperatorFormula(
+        Environment const& env, CheckTask<storm::logic::LongRunAverageOperatorFormula, ValueType> const& checkTask) override;
+
+    std::unique_ptr<CheckResult> computeProbabilities(Environment const& env, CheckTask<storm::logic::Formula, ValueType> const& checkTask) override;
+    std::unique_ptr<CheckResult> computeRewards(Environment const& env, CheckTask<storm::logic::Formula, ValueType> const& checkTask) override;
+
+    std::unique_ptr<CheckResult> computeUntilProbabilities(Environment const& env, CheckTask<storm::logic::UntilFormula, ValueType> const& checkTask) override;
+    std::unique_ptr<CheckResult> computeGloballyProbabilities(Environment const& env,
+                                                              CheckTask<storm::logic::GloballyFormula, ValueType> const& checkTask) override;
+    std::unique_ptr<CheckResult> computeNextProbabilities(Environment const& env, CheckTask<storm::logic::NextFormula, ValueType> const& checkTask) override;
+    std::unique_ptr<CheckResult> computeBoundedUntilProbabilities(Environment const& env,
+                                                                  CheckTask<storm::logic::BoundedUntilFormula, ValueType> const& checkTask) override;
+
+    std::unique_ptr<CheckResult> computeLongRunAverageProbabilities(Environment const& env,
+                                                                    CheckTask<storm::logic::StateFormula, ValueType> const& checkTask) override;
+    std::unique_ptr<CheckResult> computeLongRunAverageRewards(Environment const& env,
+                                                              CheckTask<storm::logic::LongRunAverageRewardFormula, ValueType> const& checkTask) override;
+
+   private:
+    void computeAndSetChoiceValues(Environment const& env, std::unique_ptr<CheckResult>& result) const;
+
+    storm::storage::BitVector statesOfCoalition;
 };
+
 }  // namespace modelchecker
 }  // namespace storm

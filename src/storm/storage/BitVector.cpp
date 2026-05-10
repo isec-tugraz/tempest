@@ -1156,6 +1156,18 @@ std::ostream& operator<<(std::ostream& out, BitVector const& bitvector) {
     return out;
 }
 
+void BitVector::setClippedStatesOfCoalition(BitVector const& relevantStates, BitVector const& statesOfCoalition) {
+    uint64_t clippedIndex = 0;
+    for (uint64_t state = 0; state < relevantStates.size(); ++state) {
+        if (relevantStates.get(state)) {
+            if (statesOfCoalition.get(state)) {
+                this->set(clippedIndex, true);
+            }
+            ++clippedIndex;
+        }
+    }
+}
+
 void BitVector::printBits(std::ostream& out) const {
     out << "bit vector(" << getNumberOfSetBits() << "/" << bitCount << ") ";
     uint64_t index = 0;

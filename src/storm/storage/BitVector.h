@@ -735,6 +735,15 @@ class BitVector {
     void store(std::ostream&) const;
     static BitVector load(std::string const& description);
 
+    /*!
+     * Sets this vector (indexed over relevant states) based on which relevant states appear in statesOfCoalition.
+     * Bit i is set iff the i-th element of relevantStates is also set in statesOfCoalition.
+     *
+     * @param relevantStates The superset BitVector that selects which states are relevant.
+     * @param statesOfCoalition The full-size coalition BitVector to clip.
+     */
+    void setClippedStatesOfCoalition(BitVector const& relevantStates, BitVector const& statesOfCoalition);
+
     friend struct std::hash<storm::storage::BitVector>;
     friend struct FNV1aBitVectorHash;
 
