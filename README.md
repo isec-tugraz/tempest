@@ -1,81 +1,51 @@
-Storm - A Modern Probabilistic Model Checker
-============================================
+[![Storm upstream](https://img.shields.io/badge/storm--upstream-e0ff44df-blue)](https://github.com/stormchecker/storm/commit/e0ff44df1da4b4607dce3ec18404c76fe26a2fd1)
 
-[![Build Status](https://github.com/stormchecker/storm/workflows/Build%20Test/badge.svg)](https://github.com/stormchecker/storm/actions)
-[![GitHub release](https://img.shields.io/github/release/stormchecker/storm.svg)](https://github.com/stormchecker/storm/releases/)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1181896.svg)](https://doi.org/10.5281/zenodo.1181896)
+# Tempest
 
+Tempest is a shield synthesis tool built as a fork of [Storm](https://www.stormchecker.org/), a probabilistic model checker. It extends Storm's model checking with the prerequisites for synthesizing shields from probabilistic models.
 
-Usage
------------------------------
-The Storm website [www.stormchecker.org](https://www.stormchecker.org/) provides documentation and background information.
-- For installation and usage instructions, check out the documentation found in [Getting Started](http://www.stormchecker.org/getting-started.html).
-- Video tutorials and interactive code examples are available in [Tutorials](https://www.stormchecker.org/tutorials.html).
-- The [Storm starter project](https://github.com/stormchecker/storm-project-starter-cpp/) provides a starting point for incorporating Storm into C++ projects.
-- Storm provides a Python interface called [stormpy](https://stormchecker.github.io/stormpy/) for easy prototyping and interaction with Storm.
-- In case of any issues installing or using Storm, [let us know](https://www.stormchecker.org/documentation/obtain-storm/troubleshooting.html).
+## Dependencies
+
+Tempest inherits Storm's dependencies. Install them by following the official Storm documentation:
+
+[https://www.stormchecker.org/documentation/obtain-storm/dependencies.html](https://www.stormchecker.org/documentation/obtain-storm/dependencies.html)
 
 
-Examples
------------------------------
-Various benchmarks together with example invocations of Storm can be found at the [Quantitative Verification Benchmark Set (QVBS)](http://qcomp.org/benchmarks).
-Additional input files for Storm can be obtained from the [storm-examples](https://github.com/moves-rwth/storm-examples) repository.
+## Installation
 
+The recommended build uses [Ninja](https://ninja-build.org/) for faster incremental compilation. If Ninja is not available, plain CMake (Make backend) works as a drop-in alternative.
 
-Developers
------------------------------
-We welcome contributions to Storm.
-Our [information for developers](doc/developers.md) contains general information to get started with the development on Storm.
-Feel free to contact us in case you need any pointers or help.
+**With Ninja (recommended):**
 
+```bash
+# Clone the repository
+git clone <tempest-repo-url>
+cd tempest
 
-Authors
------------------------------
-Storm has initially been developed at RWTH Aachen University. It is currently under development at (lexicographically) Eindhoven University of Technology, Radboud University, and RWTH Aachen University. 
+# Configure
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -GNinja -DSTORM_BUILD_TESTS=OFF
 
-###### Principal developers (lexicographical order)
-* Christian Hensel
-* Sebastian Junges
-* Joost-Pieter Katoen
-* Tim Quatmann
-* Matthias Volk
+# Build
+ninja -C build -j$(nproc)
+```
 
-###### Active Developers (lexicographical order)
-* Alexander Bork
-* Linus Heck
-* Luko van der Maas
+**With CMake / Make:**
 
-###### Former Developers (lexicographical order)
-* Jana Berger
-* David Korzeniewski
-* Jip Spel
+```bash
+git clone <tempest-repo-url>
+cd tempest
 
-###### Contributors (lexicographical order)
-* Daniel Basgöze
-* Dimitri Bohlender
-* Harold Bruintjes
-* Calvin Chau
-* Michael Deutschen
-* Thomas Heinemann
-* Thomas Henn
-* Mahdi JafariRaviz
-* Tom Janson
-* Jan Karuc
-* Joachim Klein
-* Gereon Kremer
-* Sascha Vincent Kurowski
-* Peter Lindner
-* Hannah Mertens
-* Stefanie Mohr
-* Stefan Pranger
-* Svenja Stein
-* Manuel Sascha Weiand
-* Ulises Torrella
-* Lukas Westhofen
+# Configure (omit -GNinja to use the default Make generator)
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSTORM_BUILD_TESTS=OFF
 
-For an exhaustive list of contributors and more details, see the [GitHub page](https://github.com/stormchecker/storm/graphs/contributors).
+# Build
+cmake --build build -j$(nproc)
+```
 
+The compiled binary is located at `build/bin/storm`.
 
-Citing Storm
------------------------------
-If you want to cite Storm, please use the most recent paper in [this category](https://www.stormchecker.org/publications.html).
+## TempestPy
+
+Tempest serves as the computational backend for **TempestPy**, a Python interface for shield synthesis. See the TempestPy repository for Python bindings and high-level shield synthesis workflows:
+
+[TempestPy repository](#) <!-- TODO: replace with actual link -->
