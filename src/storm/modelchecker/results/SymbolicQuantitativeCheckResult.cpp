@@ -44,23 +44,53 @@ std::set<storm::expressions::Variable> SymbolicQuantitativeCheckResult<Type, Val
 }
 
 template<storm::dd::DdType Type, typename ValueType>
-storm::dd::Add<Type, ValueType> SymbolicQuantitativeCheckResult<Type, ValueType>::computeMaskAdd(
-    storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model, storm::dd::Add<Type, ValueType> const& transitionMatrix,
-    storm::dd::Add<Type, ValueType> const& choiceValues, ValueType const& threshold, bool minimize) {
-    storm::dd::Bdd<Type> validStateChoices = transitionMatrix.notZero().existsAbstract(model.getColumnVariables());
-    storm::dd::Bdd<Type> thresholdMet = minimize ? choiceValues.lessOrEqual(threshold) : choiceValues.greaterOrEqual(threshold);
-    storm::dd::Bdd<Type> safeStateChoices = thresholdMet && validStateChoices;
+storm::dd::Add<Type, ValueType> SymbolicQuantitativeCheckResult<Type, ValueType>::computeActionMaskAdd(
+    storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model, storm::dd::Bdd<Type> const& stateChoices) {
     storm::dd::Add<Type, ValueType> result = model.getManager().template getAddZero<ValueType>();
 
     ValueType bitValue = storm::utility::one<ValueType>();
     for (auto const& actionVariable : getActionLabelVariables(model)) {
         storm::dd::Bdd<Type> safeStatesForAction =
-            (safeStateChoices && model.getManager().getEncoding(actionVariable, 1)).existsAbstract(model.getNondeterminismVariables());
+            (stateChoices && model.getManager().getEncoding(actionVariable, 1)).existsAbstract(model.getNondeterminismVariables());
         result += safeStatesForAction.template toAdd<ValueType>() * model.getManager().getConstant(bitValue);
         bitValue *= storm::utility::convertNumber<ValueType, uint64_t>(2);
     }
 
     return result;
+}
+
+template<storm::dd::DdType Type, typename ValueType>
+storm::dd::Add<Type, ValueType> SymbolicQuantitativeCheckResult<Type, ValueType>::computeMaskAdd(
+    storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model, storm::dd::Add<Type, ValueType> const& transitionMatrix,
+    storm::dd::Add<Type, ValueType> const& choiceValues, ValueType const& threshold, storm::OptimizationDirection direction) {
+    storm::dd::Bdd<Type> validStateChoices = transitionMatrix.notZero().existsAbstract(model.getColumnVariables());
+    storm::dd::Bdd<Type> safeStateChoices =
+        (direction == storm::OptimizationDirection::Minimize ? choiceValues.lessOrEqual(threshold) : choiceValues.greaterOrEqual(threshold)) &&
+        validStateChoices;
+    return computeActionMaskAdd(model, safeStateChoices);
+}
+
+template<storm::dd::DdType Type, typename ValueType>
+storm::dd::Add<Type, ValueType> SymbolicQuantitativeCheckResult<Type, ValueType>::computeFallbackAdd(
+    storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model, storm::dd::Add<Type, ValueType> const& transitionMatrix,
+    storm::dd::Add<Type, ValueType> const& choiceValues, ValueType const& threshold, storm::OptimizationDirection direction) {
+    storm::dd::Bdd<Type> validStateChoices = transitionMatrix.notZero().existsAbstract(model.getColumnVariables());
+    storm::dd::Bdd<Type> safeStateChoices =
+        (direction == storm::OptimizationDirection::Minimize ? choiceValues.lessOrEqual(threshold) : choiceValues.greaterOrEqual(threshold)) &&
+        validStateChoices;
+    storm::dd::Bdd<Type> statesWithSafeChoice = safeStateChoices.existsAbstract(model.getNondeterminismVariables());
+
+    storm::dd::Add<Type, ValueType> bestChoiceValues;
+    if (direction == storm::OptimizationDirection::Minimize) {
+        storm::dd::Add<Type, ValueType> validChoiceValues =
+            validStateChoices.ite(choiceValues, model.getManager().getConstant(storm::utility::infinity<ValueType>()));
+        bestChoiceValues = validChoiceValues.minAbstract(model.getNondeterminismVariables());
+    } else {
+        bestChoiceValues = choiceValues.maxAbstract(model.getNondeterminismVariables());
+    }
+
+    storm::dd::Bdd<Type> fallbackStateChoices = choiceValues.equals(bestChoiceValues) && validStateChoices && !statesWithSafeChoice;
+    return computeActionMaskAdd(model, fallbackStateChoices);
 }
 
 template<storm::dd::DdType Type, typename ValueType>

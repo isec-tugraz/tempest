@@ -6,6 +6,7 @@
 #include <boost/optional.hpp>
 
 #include "storm/modelchecker/results/QuantitativeCheckResult.h"
+#include "storm/solver/OptimizationDirection.h"
 #include "storm/storage/dd/Add.h"
 #include "storm/storage/dd/DdType.h"
 #include "storm/storage/expressions/Variable.h"
@@ -55,7 +56,11 @@ class SymbolicQuantitativeCheckResult : public QuantitativeCheckResult<ValueType
     static storm::dd::Add<Type, ValueType> computeMaskAdd(storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model,
                                                           storm::dd::Add<Type, ValueType> const& transitionMatrix,
                                                           storm::dd::Add<Type, ValueType> const& choiceValues, ValueType const& threshold,
-                                                          bool minimize = false);
+                                                          storm::OptimizationDirection direction = storm::OptimizationDirection::Maximize);
+    static storm::dd::Add<Type, ValueType> computeFallbackAdd(storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model,
+                                                              storm::dd::Add<Type, ValueType> const& transitionMatrix,
+                                                              storm::dd::Add<Type, ValueType> const& choiceValues, ValueType const& threshold,
+                                                              storm::OptimizationDirection direction = storm::OptimizationDirection::Maximize);
 
     virtual std::ostream& writeToStream(std::ostream& out) const override;
 
@@ -72,6 +77,8 @@ class SymbolicQuantitativeCheckResult : public QuantitativeCheckResult<ValueType
    private:
     static std::set<storm::expressions::Variable> getActionLabelVariables(
         storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model);
+    static storm::dd::Add<Type, ValueType> computeActionMaskAdd(storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model,
+                                                                storm::dd::Bdd<Type> const& stateChoices);
 
     bool hasValueType(std::type_info const& t) const override {
         return t == typeid(ValueType);
