@@ -1488,13 +1488,15 @@ MDPSparseModelCheckingHelperReturnType<SolutionType> SparseMdpPrctlHelper<ValueT
 
     std::vector<SolutionType> choiceValues(transitionMatrix.getRowCount(), storm::utility::zero<SolutionType>());
     if constexpr (storm::IsIntervalType<ValueType>) {
-      STORM_LOG_THROW(!env.modelchecker().getProduceChoiceValues(), storm::exceptions::NotImplementedException,
-                      "We do not support the computation of choice values with interval models.");
+        STORM_LOG_THROW(!env.modelchecker().getProduceChoiceValues(), storm::exceptions::NotImplementedException,
+                        "We do not support the computation of choice values with interval models.");
     } else {
-      auto multiplier = storm::solver::MultiplierFactory<ValueType, SolutionType>().create(env, transitionMatrix);
-      if (env.modelchecker().getProduceChoiceValues()) {
-        multiplier->multiply(env, result, nullptr, choiceValues);
-      }
+        if (env.modelchecker().getProduceChoiceValues()) {
+            auto choiceRewards = totalStateRewardVectorGetter(
+                transitionMatrix.getRowCount(), transitionMatrix, storm::storage::BitVector(transitionMatrix.getRowGroupCount(), true));
+            auto multiplier = storm::solver::MultiplierFactory<ValueType, SolutionType>().create(env, transitionMatrix);
+            multiplier->multiply(env, result, &choiceRewards, choiceValues);
+        }
     }
 
     // Sanity check for created scheduler.
