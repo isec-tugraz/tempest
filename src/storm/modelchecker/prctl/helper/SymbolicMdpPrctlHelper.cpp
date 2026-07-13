@@ -171,14 +171,20 @@ template<storm::dd::DdType DdType, typename ValueType>
 std::unique_ptr<CheckResult> SymbolicMdpPrctlHelper<DdType, ValueType>::computeNextProbabilities(
     Environment const& env, OptimizationDirection dir, storm::models::symbolic::NondeterministicModel<DdType, ValueType> const& model,
     storm::dd::Add<DdType, ValueType> const& transitionMatrix, storm::dd::Bdd<DdType> const& nextStates) {
-    storm::dd::Add<DdType, ValueType> result = (transitionMatrix * nextStates.swapVariables(model.getRowColumnMetaVariablePairs()).template toAdd<ValueType>())
-                                                   .sumAbstract(model.getColumnVariables());
+    storm::dd::Add<DdType, ValueType> choiceValues =
+        (transitionMatrix * nextStates.swapVariables(model.getRowColumnMetaVariablePairs()).template toAdd<ValueType>())
+            .sumAbstract(model.getColumnVariables());
+    storm::dd::Add<DdType, ValueType> result = choiceValues;
     if (dir == OptimizationDirection::Minimize) {
         result = (result + model.getIllegalMask().template toAdd<ValueType>()).minAbstract(model.getNondeterminismVariables());
     } else {
         result = result.maxAbstract(model.getNondeterminismVariables());
     }
-    return std::unique_ptr<CheckResult>(new SymbolicQuantitativeCheckResult<DdType, ValueType>(model.getReachableStates(), result));
+    auto checkResult = std::make_unique<SymbolicQuantitativeCheckResult<DdType, ValueType>>(model.getReachableStates(), result);
+    if (env.modelchecker().getProduceChoiceValues()) {
+        checkResult->setChoiceValues(std::move(choiceValues));
+    }
+    return checkResult;
 }
 
 template<storm::dd::DdType DdType, typename ValueType>

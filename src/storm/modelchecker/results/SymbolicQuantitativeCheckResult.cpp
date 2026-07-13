@@ -47,13 +47,20 @@ template<storm::dd::DdType Type, typename ValueType>
 storm::dd::Add<Type, ValueType> SymbolicQuantitativeCheckResult<Type, ValueType>::computeActionMaskAdd(
     storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model, storm::dd::Bdd<Type> const& stateChoices) {
     storm::dd::Add<Type, ValueType> result = model.getManager().template getAddZero<ValueType>();
+    std::set<storm::expressions::Variable> actionLabelVariables = getActionLabelVariables(model);
 
     ValueType bitValue = storm::utility::one<ValueType>();
-    for (auto const& actionVariable : getActionLabelVariables(model)) {
-        storm::dd::Bdd<Type> safeStatesForAction =
-            (stateChoices && model.getManager().getEncoding(actionVariable, 1)).existsAbstract(model.getNondeterminismVariables());
+    std::set<storm::expressions::Variable> previousActionVariables;
+    for (auto const& actionVariable : actionLabelVariables) {
+        storm::dd::Bdd<Type> actionEncoding = model.getManager().getEncoding(actionVariable, 1);
+        for (auto const& previousActionVariable : previousActionVariables) {
+            actionEncoding &= model.getManager().getEncoding(previousActionVariable, 0);
+        }
+
+        storm::dd::Bdd<Type> safeStatesForAction = (stateChoices && actionEncoding).existsAbstract(model.getNondeterminismVariables());
         result += safeStatesForAction.template toAdd<ValueType>() * model.getManager().getConstant(bitValue);
         bitValue *= storm::utility::convertNumber<ValueType, uint64_t>(2);
+        previousActionVariables.insert(actionVariable);
     }
 
     return result;
