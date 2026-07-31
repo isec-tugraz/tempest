@@ -145,6 +145,7 @@ std::unique_ptr<CheckResult> SymbolicMdpPrctlHelper<DdType, ValueType>::computeU
                                                          : model.getManager().template getAddZero<ValueType>());
         } else {
             storm::dd::Add<DdType, ValueType> fullResult = statesWithProbability01.second.template toAdd<ValueType>();
+
             auto checkResult = std::make_unique<storm::modelchecker::SymbolicQuantitativeCheckResult<DdType, ValueType>>(model.getReachableStates(), fullResult);
             if (env.modelchecker().getProduceChoiceValues()) {
                 storm::dd::Add<DdType, ValueType> fullResultAsColumn = fullResult.swapVariables(model.getRowColumnMetaVariablePairs());

@@ -94,7 +94,9 @@ class SymbolicQuantitativeCheckResult : public QuantitativeCheckResult<ValueType
     storm::dd::Add<Type, ValueType> values;
 
     // The values for each state and choice pair.
-    boost::optional<storm::dd::Add<Type, ValueType>> choiceValues;
+    storm::dd::Add<Type, ValueType> choiceValues;
+
+    bool hasChoiceValuesb = false;
 };
 }  // namespace modelchecker
 }  // namespace storm
