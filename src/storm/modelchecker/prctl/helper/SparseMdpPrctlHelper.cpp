@@ -791,7 +791,8 @@ MDPSparseModelCheckingHelperReturnType<SolutionType> SparseMdpPrctlHelper<ValueT
     std::vector<SolutionType> choiceValues(transitionMatrix.getRowCount(), storm::utility::zero<SolutionType>());
 
     if constexpr (storm::IsIntervalType<ValueType>) {
-        STORM_LOG_THROW(false, storm::exceptions::NotImplementedException, "We do not support the computation of choice values with interval models.");
+        STORM_LOG_THROW(!env.modelchecker().getProduceChoiceValues(), storm::exceptions::NotImplementedException,
+                        "We do not support the computation of choice values with interval models.");
     } else {
         if (env.modelchecker().getProduceChoiceValues()) {
             auto multiplier = storm::solver::MultiplierFactory<ValueType, SolutionType>().create(env, transitionMatrix);
@@ -1487,7 +1488,8 @@ MDPSparseModelCheckingHelperReturnType<SolutionType> SparseMdpPrctlHelper<ValueT
 
     std::vector<SolutionType> choiceValues(transitionMatrix.getRowCount(), storm::utility::zero<SolutionType>());
     if constexpr (storm::IsIntervalType<ValueType>) {
-      STORM_LOG_THROW(false, storm::exceptions::NotImplementedException, "We do not support the computation of choice values with interval models.");
+      STORM_LOG_THROW(!env.modelchecker().getProduceChoiceValues(), storm::exceptions::NotImplementedException,
+                      "We do not support the computation of choice values with interval models.");
     } else {
       auto multiplier = storm::solver::MultiplierFactory<ValueType, SolutionType>().create(env, transitionMatrix);
       if (env.modelchecker().getProduceChoiceValues()) {
