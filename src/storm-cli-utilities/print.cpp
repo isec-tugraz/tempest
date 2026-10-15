@@ -56,6 +56,7 @@ std::string shellQuoteSingleIfNecessary(const std::string& arg) {
 
 void printHeader(std::string const& name, const int argc, const char** argv) {
     STORM_PRINT(name << " " << storm::StormVersion::shortVersionString() << '\n');
+    STORM_PRINT("Tempest -- shield synthesis using Storm (a fork of the Storm model checker, https://www.stormchecker.org)\n");
 #ifndef NDEBUG
     STORM_PRINT("DEBUG BUILD\n");
 #endif
@@ -77,6 +78,7 @@ void printHeader(std::string const& name, const int argc, const char** argv) {
 }
 
 void printVersion() {
+    STORM_PRINT("Tempest -- shield synthesis using Storm (a fork of the Storm model checker, https://www.stormchecker.org)\n");
     STORM_PRINT(storm::StormVersion::longVersionString() << '\n');
     STORM_PRINT(storm::StormVersion::buildInfo() << '\n');
 
