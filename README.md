@@ -42,7 +42,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSTORM_BUILD_TESTS=OFF
 cmake --build build -j$(nproc)
 ```
 
-The compiled binary is located at `build/bin/storm`.
+The compiled binary is located at `build/bin/tempest`.
 
 ## TempestPy
 
