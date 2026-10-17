@@ -33,8 +33,10 @@ RUN git update-index -q --refresh || true
 # STORM_PORTABLE: no -march=native, the image may run on a different machine than it was built on.
 # STORM_USE_LTO=OFF: considerably faster build, LTO is not needed for development testing.
 # ccache lives in a BuildKit cache mount, which persists between builds on the same Docker host.
+# Tempest uses precompiled headers, which ccache only caches with the sloppiness set below.
 RUN --mount=type=cache,target=/ccache \
     export CCACHE_DIR=/ccache CCACHE_BASEDIR=/opt/tempest CCACHE_MAXSIZE=20G \
+        CCACHE_SLOPPINESS=pch_defines,time_macros \
     && cmake -S . -B build -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DSTORM_PORTABLE=ON \
