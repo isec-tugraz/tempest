@@ -46,7 +46,7 @@ build-image:
         exit 0
       fi
     - >
-      docker build -f Dockerfile.ci
+      docker build -f Dockerfile.ci --provenance=false --sbom=false
       --build-arg EXPECTED_COMMIT="$CI_COMMIT_SHA"
       --build-arg no_threads="$BUILD_THREADS"
       -t "$IMAGE:$CI_COMMIT_SHA" .
