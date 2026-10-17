@@ -491,6 +491,8 @@ endif()
 message(STATUS "Storm - Version is ${STORM_VERSION_STRING}.")
 export_option(STORM_VERSION) # We want this information also in the more accessible stormOptions.cmake
 export_option(STORM_VERSION_DEV) # We want this information also in the more accessible stormOptions.cmake
+set(TEMPEST_VERSION "0.1.0")
+export_option(TEMPEST_VERSION)
 # Revision and working tree state (CLEAN, DIRTY or UNKNOWN) this build was configured from, as also compiled into the version info.
 set(STORM_GIT_REVISION "${STORM_VERSION_GIT_HASH}")
 export_option(STORM_GIT_REVISION)
