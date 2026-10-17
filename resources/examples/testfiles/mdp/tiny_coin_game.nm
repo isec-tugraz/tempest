@@ -1,0 +1,29 @@
+mdp
+
+module tiny_coin_game
+
+    // States:
+    // 0 = initial
+    // 1 = goal
+    // 2 = dead
+    // 3 = augmented initial
+    s : [0..3] init 3;
+    
+    [start] s=3 -> (s'=0);
+    [safe_turn] s=0 -> 0.99 : (s'=1) + 0.01 : (s'=2);
+    [risky_turn] s=0 -> 0.50 : (s'=1) + 0.50 : (s'=2);
+
+    [] (s = 1 | s = 2) -> true;
+
+endmodule
+
+formula goal = s=1;
+formula dead = s=2;
+
+rewards "coins"
+    [safe_turn] s=0 : 1;
+    [risky_turn] s=0 : 10;
+endrewards
+
+label "dead" = (s = 2);
+label "goal" = (s = 1);

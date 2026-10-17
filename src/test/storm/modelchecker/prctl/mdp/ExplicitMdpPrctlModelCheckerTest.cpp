@@ -5,6 +5,7 @@
 #include "storm-parsers/parser/FormulaParser.h"
 #include "storm-parsers/parser/PrismParser.h"
 #include "storm/builder/ExplicitModelBuilder.h"
+#include "storm/environment/modelchecker/ModelCheckerEnvironment.h"
 #include "storm/environment/solver/MinMaxSolverEnvironment.h"
 #include "storm/logic/Formulas.h"
 #include "storm/modelchecker/prctl/SparseMdpPrctlModelChecker.h"
@@ -199,4 +200,71 @@ TEST(ExplicitMdpPrctlModelCheckerTest, AsynchronousLeader) {
     storm::modelchecker::ExplicitQuantitativeCheckResult<double>& quantitativeResult6 = result->asExplicitQuantitativeCheckResult<double>();
 
     EXPECT_NEAR(30.0 / 7.0, quantitativeResult6[0], precision);
+}
+
+TEST(ExplicitMdpPrctlModelCheckerTest, TinyCoinGameRewardChoiceValues) {
+    storm::Environment env;
+    double const precision = 1e-6;
+    env.modelchecker().setProduceChoiceValues(true);
+
+    storm::prism::Program program = storm::parser::PrismParser::parse(STORM_TEST_RESOURCES_DIR "/mdp/tiny_coin_game.nm");
+    storm::generator::NextStateGeneratorOptions options;
+    options.setBuildAllLabels().setBuildAllRewardModels();
+    std::shared_ptr<storm::models::sparse::Model<double>> abstractModel = storm::builder::ExplicitModelBuilder<double>(program, options).build();
+
+    ASSERT_EQ(storm::models::ModelType::Mdp, abstractModel->getType());
+
+    std::shared_ptr<storm::models::sparse::Mdp<double>> mdp = abstractModel->as<storm::models::sparse::Mdp<double>>();
+
+    ASSERT_EQ(4ull, mdp->getNumberOfStates());
+    ASSERT_EQ(7ull, mdp->getNumberOfTransitions());
+
+    storm::modelchecker::SparseMdpPrctlModelChecker<storm::models::sparse::Mdp<double>> checker(*mdp);
+
+    std::shared_ptr<storm::logic::Formula const> formula =
+        storm::parser::FormulaParser().parseSingleFormulaFromString("R{\"coins\"}max=? [F (\"goal\" | \"dead\")]");
+
+    std::unique_ptr<storm::modelchecker::CheckResult> result = checker.check(env, *formula);
+    storm::modelchecker::ExplicitQuantitativeCheckResult<double>& quantitativeResult = result->asExplicitQuantitativeCheckResult<double>();
+
+    EXPECT_NEAR(10.0, quantitativeResult[0], precision);
+    ASSERT_TRUE(quantitativeResult.hasChoiceValues());
+    std::vector<double> const& choiceValues = quantitativeResult.getChoiceValues();
+    ASSERT_EQ(5ull, choiceValues.size());
+    EXPECT_NEAR(10.0, choiceValues[0], precision);
+    EXPECT_NEAR(1.0, choiceValues[1], precision);
+    EXPECT_NEAR(10.0, choiceValues[2], precision);
+    EXPECT_NEAR(0.0, choiceValues[3], precision);
+    EXPECT_NEAR(0.0, choiceValues[4], precision);
+
+    formula = storm::parser::FormulaParser().parseSingleFormulaFromString("R{\"coins\"}min=? [F (\"goal\" | \"dead\")]");
+
+    result = checker.check(env, *formula);
+    storm::modelchecker::ExplicitQuantitativeCheckResult<double>& quantitativeResultMin = result->asExplicitQuantitativeCheckResult<double>();
+
+    EXPECT_NEAR(1.0, quantitativeResultMin[0], precision);
+    ASSERT_TRUE(quantitativeResultMin.hasChoiceValues());
+    std::vector<double> const& choiceValuesMin = quantitativeResultMin.getChoiceValues();
+    ASSERT_EQ(5ull, choiceValuesMin.size());
+    EXPECT_NEAR(1.0, choiceValuesMin[0], precision);
+    EXPECT_NEAR(1.0, choiceValuesMin[1], precision);
+    EXPECT_NEAR(10.0, choiceValuesMin[2], precision);
+    EXPECT_NEAR(0.0, choiceValuesMin[3], precision);
+    EXPECT_NEAR(0.0, choiceValuesMin[4], precision);
+
+    formula = storm::parser::FormulaParser().parseSingleFormulaFromString("R{\"coins\"}max=? [F \"goal\"]");
+
+    result = checker.check(env, *formula);
+    storm::modelchecker::ExplicitQuantitativeCheckResult<double>& quantitativeResultInfinite =
+        result->asExplicitQuantitativeCheckResult<double>();
+
+    EXPECT_TRUE(storm::utility::isInfinity(quantitativeResultInfinite[0]));
+    ASSERT_TRUE(quantitativeResultInfinite.hasChoiceValues());
+    std::vector<double> const& choiceValuesInfinite = quantitativeResultInfinite.getChoiceValues();
+    ASSERT_EQ(5ull, choiceValuesInfinite.size());
+    EXPECT_TRUE(storm::utility::isInfinity(choiceValuesInfinite[0]));
+    EXPECT_TRUE(storm::utility::isInfinity(choiceValuesInfinite[1]));
+    EXPECT_TRUE(storm::utility::isInfinity(choiceValuesInfinite[2]));
+    EXPECT_NEAR(0.0, choiceValuesInfinite[3], precision);
+    EXPECT_TRUE(storm::utility::isInfinity(choiceValuesInfinite[4]));
 }
