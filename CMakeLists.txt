@@ -450,22 +450,22 @@ endif()
 ##	CMake-generated Config File for Storm
 ##
 #############################################################
-set(STORM_GIT_DIRTY "UNKNOWN")
+set(TEMPEST_GIT_DIRTY "UNKNOWN")
 if (PROJECT_IS_TOP_LEVEL)
 	# try to obtain the current revision and the state of the working tree from git.
 	# Note that this is independent of git tags and only considers tracked files (untracked files do not count as dirty).
 	include(GetGitRevisionDescription)
 	get_git_head_revision(STORM_VERSION_REFSPEC STORM_VERSION_GIT_HASH)
-	git_local_changes(STORM_GIT_LOCAL_CHANGES)
-	if ("${STORM_GIT_LOCAL_CHANGES}" STREQUAL "CLEAN" OR "${STORM_GIT_LOCAL_CHANGES}" STREQUAL "DIRTY")
-		set(STORM_GIT_DIRTY "${STORM_GIT_LOCAL_CHANGES}")
+	git_local_changes(TEMPEST_GIT_LOCAL_CHANGES)
+	if ("${TEMPEST_GIT_LOCAL_CHANGES}" STREQUAL "CLEAN" OR "${TEMPEST_GIT_LOCAL_CHANGES}" STREQUAL "DIRTY")
+		set(TEMPEST_GIT_DIRTY "${TEMPEST_GIT_LOCAL_CHANGES}")
 	endif()
 endif()
 
 # translate the working tree state for the generated version source file
-if (STORM_GIT_DIRTY STREQUAL "CLEAN")
+if (TEMPEST_GIT_DIRTY STREQUAL "CLEAN")
 	set(STORM_VERSION_DIRTY "DirtyState::Clean")
-elseif (STORM_GIT_DIRTY STREQUAL "DIRTY")
+elseif (TEMPEST_GIT_DIRTY STREQUAL "DIRTY")
 	set(STORM_VERSION_DIRTY "DirtyState::Dirty")
 else()
 	set(STORM_VERSION_DIRTY "DirtyState::Unknown")
@@ -494,9 +494,9 @@ export_option(STORM_VERSION_DEV) # We want this information also in the more acc
 set(TEMPEST_VERSION "0.1.0")
 export_option(TEMPEST_VERSION)
 # Revision and working tree state (CLEAN, DIRTY or UNKNOWN) this build was configured from, as also compiled into the version info.
-set(STORM_GIT_REVISION "${STORM_VERSION_GIT_HASH}")
-export_option(STORM_GIT_REVISION)
-export_option(STORM_GIT_DIRTY)
+set(TEMPEST_GIT_REVISION "${STORM_VERSION_GIT_HASH}")
+export_option(TEMPEST_GIT_REVISION)
+export_option(TEMPEST_GIT_DIRTY)
 
 # Configure a header file to pass some of the CMake settings to the source code
 configure_file (
