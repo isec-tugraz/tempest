@@ -1,0 +1,50 @@
+# Dockerfile for the Tempest build image used by the CI
+#######################################################
+# Builds Tempest (including tests) from the checked-out commit and keeps source and
+# build tree in the image at /opt/tempest, so that TempestPy can build against it with
+#   STORM_DIR_HINT=/opt/tempest/build
+# Source and build tree must stay together at this path: the build tree refers to the
+# source tree (include directories, RPATHs).
+#
+# Requires BuildKit (cache mount) and a build context that contains .git
+# (see Dockerfile.ci.dockerignore). Built by .gitlab-ci.yml:
+#   docker build -f Dockerfile.ci --build-arg EXPECTED_COMMIT=$(git rev-parse HEAD) .
+
+ARG BASE_IMAGE=movesrwth/storm-dependencies:latest
+FROM $BASE_IMAGE
+LABEL org.opencontainers.image.title="tempest-build"
+
+# Commit the image is expected to be built from; the build fails if CMake sees another one
+ARG EXPECTED_COMMIT
+# Number of threads to use for parallel compilation
+ARG no_threads=4
+
+RUN apt-get update -qq \
+    && apt-get install -y --no-install-recommends ninja-build ccache \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt/tempest
+COPY . .
+
+# COPY changes file metadata, which makes `git diff-index` report files as modified.
+# Refresh the index so that the dirty state recorded by CMake is the real one.
+RUN git update-index -q --refresh || true
+
+# STORM_PORTABLE: no -march=native, the image may run on a different machine than it was built on.
+# STORM_USE_LTO=OFF: considerably faster build, LTO is not needed for development testing.
+# ccache lives in a BuildKit cache mount, which persists between builds on the same Docker host.
+# Tempest uses precompiled headers, which ccache only caches with the sloppiness set below.
+RUN --mount=type=cache,target=/ccache \
+    export CCACHE_DIR=/ccache CCACHE_BASEDIR=/opt/tempest CCACHE_MAXSIZE=20G \
+        CCACHE_SLOPPINESS=pch_defines,time_macros \
+    && cmake -S . -B build -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DSTORM_PORTABLE=ON \
+        -DSTORM_USE_LTO=OFF \
+        -DSTORM_BUILD_TESTS=ON \
+    && grep -q "TEMPEST_GIT_REVISION \"${EXPECTED_COMMIT}\"" build/stormOptions.cmake \
+    && grep -q 'TEMPEST_GIT_DIRTY "CLEAN"' build/stormOptions.cmake \
+    && cmake --build build -j "${no_threads}" --target all tests \
+    && ccache -s
+
+ENV TEMPEST_BUILD_DIR=/opt/tempest/build
