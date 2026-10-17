@@ -450,38 +450,25 @@ endif()
 ##	CMake-generated Config File for Storm
 ##
 #############################################################
+set(TEMPEST_GIT_DIRTY "UNKNOWN")
 if (PROJECT_IS_TOP_LEVEL)
-	# try to obtain the current version from git.
+	# try to obtain the current revision and the state of the working tree from git.
+	# Note that this is independent of git tags and only considers tracked files (untracked files do not count as dirty).
 	include(GetGitRevisionDescription)
 	get_git_head_revision(STORM_VERSION_REFSPEC STORM_VERSION_GIT_HASH)
-	git_describe(STORM_GIT_VERSION_STRING)
-
-	# Trying to figure out if the git has changed.
-	string(REGEX MATCH "^([0-9]+)\\.([0-9]+)\\.([0-9]+)(.*)$" STORM_VERSION_MATCH "${STORM_GIT_VERSION_STRING}")
-	# No longer used, but help understanding the regex.
-	#set(STORM_VERSION_MAJOR "${CMAKE_MATCH_1}")
-	#set(STORM_VERSION_MINOR "${CMAKE_MATCH_2}")
-	#set(STORM_VERSION_PATCH "${CMAKE_MATCH_3}")
-	set(STORM_GIT_VERSION_REST "${CMAKE_MATCH_4}")
-	# parse rest of the form (-label)-commitsahead-hash(-appendix)
-	string(REGEX MATCH "^(\\-([a-z][a-z0-9\\.]+))?\\-([0-9]+)\\-([a-z0-9]+)(\\-.*)?$" STORM_VERSION_REST_MATCH "${STORM_GIT_VERSION_REST}")
-	# No longer used, but structure helps understanding the regex.
-	#set(STORM_VERSION_LABEL "${CMAKE_MATCH_2}") # might be empty
-	#set(STORM_VERSION_COMMITS_AHEAD "${CMAKE_MATCH_3}")
-	#set(STORM_VERSION_TAG_HASH "${CMAKE_MATCH_4}") # is not used
-	set(STORM_VERSION_APPENDIX "${CMAKE_MATCH_5}") # might be empty
+	git_local_changes(TEMPEST_GIT_LOCAL_CHANGES)
+	if ("${TEMPEST_GIT_LOCAL_CHANGES}" STREQUAL "CLEAN" OR "${TEMPEST_GIT_LOCAL_CHANGES}" STREQUAL "DIRTY")
+		set(TEMPEST_GIT_DIRTY "${TEMPEST_GIT_LOCAL_CHANGES}")
+	endif()
 endif()
 
-
-# check whether the git version lookup failed
-if (STORM_GIT_VERSION_STRING MATCHES "NOTFOUND")
-	set(STORM_VERSION_DIRTY DirtyState::Unknown)
+# translate the working tree state for the generated version source file
+if (TEMPEST_GIT_DIRTY STREQUAL "CLEAN")
+	set(STORM_VERSION_DIRTY "DirtyState::Clean")
+elseif (TEMPEST_GIT_DIRTY STREQUAL "DIRTY")
+	set(STORM_VERSION_DIRTY "DirtyState::Dirty")
 else()
-	if ("${STORM_VERSION_APPENDIX}" MATCHES "^.*dirty.*$")
-		set(STORM_VERSION_DIRTY "DirtyState::Dirty")
-	else()
-		set(STORM_VERSION_DIRTY "DirtyState::Clean")
-	endif()
+	set(STORM_VERSION_DIRTY "DirtyState::Unknown")
 endif()
 
 # set final Storm version
@@ -504,6 +491,12 @@ endif()
 message(STATUS "Storm - Version is ${STORM_VERSION_STRING}.")
 export_option(STORM_VERSION) # We want this information also in the more accessible stormOptions.cmake
 export_option(STORM_VERSION_DEV) # We want this information also in the more accessible stormOptions.cmake
+set(TEMPEST_VERSION "0.1.0")
+export_option(TEMPEST_VERSION)
+# Revision and working tree state (CLEAN, DIRTY or UNKNOWN) this build was configured from, as also compiled into the version info.
+set(TEMPEST_GIT_REVISION "${STORM_VERSION_GIT_HASH}")
+export_option(TEMPEST_GIT_REVISION)
+export_option(TEMPEST_GIT_DIRTY)
 
 # Configure a header file to pass some of the CMake settings to the source code
 configure_file (
