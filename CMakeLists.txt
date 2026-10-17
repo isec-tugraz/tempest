@@ -451,7 +451,9 @@ endif()
 ##
 #############################################################
 set(TEMPEST_GIT_DIRTY "UNKNOWN")
-if (PROJECT_IS_TOP_LEVEL)
+# Also do this if Storm is a subproject (e.g. fetched by a dependent project), but only if it is a git repository itself.
+# Otherwise, the lookup would walk up the directory tree and report the revision of the parent project.
+if (PROJECT_IS_TOP_LEVEL OR EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git")
 	# try to obtain the current revision and the state of the working tree from git.
 	# Note that this is independent of git tags and only considers tracked files (untracked files do not count as dirty).
 	include(GetGitRevisionDescription)
