@@ -1,0 +1,78 @@
+# GitLab CI for Tempest
+#######################
+# Builds Tempest once per commit and publishes the result as a Docker image,
+#   $CI_REGISTRY_IMAGE/build:<commit sha>
+# which TempestPy uses to build and test against its pinned Tempest commit.
+# Release tags are additionally published as
+#   $CI_REGISTRY_IMAGE/build:<tag with '+' replaced by '_'>
+# (Docker tags cannot contain '+'). Clean up old sha tags with a registry cleanup
+# policy, and keep the release tags.
+#
+# Runner requirements: Docker executor, tag `heavy-build`, access to the host's Docker
+# socket (see the runner setup notes).
+
+workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH || $CI_COMMIT_TAG
+
+stages:
+  - build
+  - test
+  - release
+
+default:
+  tags:
+    - heavy-build
+
+variables:
+  IMAGE: $CI_REGISTRY_IMAGE/build
+  BUILD_THREADS: "4"
+
+.docker-login: &docker-login
+  - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+
+build-image:
+  stage: build
+  image: docker:27-cli
+  resource_group: tempest-build
+  timeout: 3h
+  script:
+    - *docker-login
+    - |
+      if docker manifest inspect "$IMAGE:$CI_COMMIT_SHA" > /dev/null 2>&1; then
+        echo "Image $IMAGE:$CI_COMMIT_SHA already exists, nothing to build."
+        exit 0
+      fi
+    - >
+      docker build -f Dockerfile.ci
+      --build-arg EXPECTED_COMMIT="$CI_COMMIT_SHA"
+      --build-arg no_threads="$BUILD_THREADS"
+      -t "$IMAGE:$CI_COMMIT_SHA" .
+    - docker push "$IMAGE:$CI_COMMIT_SHA"
+  after_script:
+    - docker image rm "$IMAGE:$CI_COMMIT_SHA" || true
+
+# Runs the tests inside the published image, i.e. on exactly what TempestPy will use.
+test:
+  stage: test
+  image: $IMAGE:$CI_COMMIT_SHA
+  needs: [build-image]
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - cd "$TEMPEST_BUILD_DIR"
+    - ctest --output-on-failure -j "$(nproc)"
+
+# Gives release tags a stable image name. Retags in the registry without pulling the image.
+tag-release:
+  stage: release
+  image: docker:27-cli
+  needs: [test]
+  rules:
+    - if: $CI_COMMIT_TAG
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - *docker-login
+    - RELEASE_TAG="$(echo "$CI_COMMIT_TAG" | tr '+' '_')"
+    - docker buildx imagetools create --tag "$IMAGE:$RELEASE_TAG" "$IMAGE:$CI_COMMIT_SHA"

@@ -1,0 +1,7 @@
+# Used instead of .dockerignore when building Dockerfile.ci.
+# In contrast to .dockerignore, .git is kept: CMake records the revision and
+# the working tree state from it.
+.github
+resources/3rdparty/l3pp/.git/
+/*build*/
+*.log
