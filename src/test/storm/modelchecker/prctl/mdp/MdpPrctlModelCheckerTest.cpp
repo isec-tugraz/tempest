@@ -6,6 +6,7 @@
 #include "storm-parsers/api/properties.h"
 #include "storm/api/builder.h"
 #include "storm/api/properties.h"
+#include "storm/environment/modelchecker/ModelCheckerEnvironment.h"
 #include "storm/environment/solver/MinMaxSolverEnvironment.h"
 #include "storm/environment/solver/MultiplierEnvironment.h"
 #include "storm/environment/solver/TopologicalSolverEnvironment.h"
@@ -18,6 +19,7 @@
 #include "storm/modelchecker/results/QualitativeCheckResult.h"
 #include "storm/modelchecker/results/QuantitativeCheckResult.h"
 #include "storm/modelchecker/results/SymbolicQualitativeCheckResult.h"
+#include "storm/modelchecker/results/SymbolicQuantitativeCheckResult.h"
 #include "storm/models/sparse/Mdp.h"
 #include "storm/models/sparse/StandardRewardModel.h"
 #include "storm/models/symbolic/Mdp.h"
@@ -1014,6 +1016,26 @@ TYPED_TEST(MdpPrctlModelCheckerTest, LtlCoinFlips) {
 #else
     GTEST_SKIP();
 #endif
+}
+
+TYPED_TEST(MdpPrctlModelCheckerTest, BoundedUntilChoiceValues) {
+    if constexpr (TypeParam::engine == MdpEngine::PrismDd || TypeParam::engine == MdpEngine::JaniDd) {
+        auto modelFormulas = this->buildModelFormulas(STORM_TEST_RESOURCES_DIR "/mdp/leader4.nm", "Pmax=? [F<=25 \"elected\"]");
+        auto model = std::move(modelFormulas.first);
+        auto tasks = this->getTasks(modelFormulas.second);
+        this->execute(model, [&]() {
+            storm::Environment env = this->env();
+            env.modelchecker().setProduceChoiceValues(true);
+            auto checker = this->createModelChecker(model);
+            auto result = checker->check(env, tasks[0]);
+            auto& symbolicResult = result->template asSymbolicQuantitativeCheckResult<TypeParam::ddType, typename TypeParam::ValueType>();
+            ASSERT_TRUE(symbolicResult.hasChoiceValues());
+            // The maximal choice value in the initial state has to coincide with the value of the initial state.
+            auto initialChoiceValues = symbolicResult.getChoiceValues() * model->getInitialStates().template toAdd<typename TypeParam::ValueType>();
+            auto initialValue = (symbolicResult.getValueVector() * model->getInitialStates().template toAdd<typename TypeParam::ValueType>()).getMax();
+            EXPECT_NEAR(initialValue, initialChoiceValues.getMax(), this->precision());
+        });
+    }
 }
 
 TYPED_TEST(MdpPrctlModelCheckerTest, HOADice) {
