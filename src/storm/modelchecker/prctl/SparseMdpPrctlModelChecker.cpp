@@ -152,8 +152,6 @@ std::unique_ptr<CheckResult> SparseMdpPrctlModelChecker<SparseMdpModelType>::com
         }
         uint64_t const lowerBound = pathFormula.getNonStrictLowerBound<uint64_t>();
         uint64_t const upperBound = pathFormula.getNonStrictUpperBound<uint64_t>();
-        // Choice values are P * V_{n-1}, so we compute the values after n-1 steps and derive the values after n steps from them.
-        // For n = 0 there are no choices to evaluate. Choice values are not supported for interval models.
         bool const computeChoiceValues = produceChoiceValues && !storm::IsIntervalType<ValueType> && upperBound > 0;
         storm::modelchecker::helper::SparseNondeterministicStepBoundedHorizonHelper<ValueType, SolutionType> helper;
         std::vector<SolutionType> numericResult =

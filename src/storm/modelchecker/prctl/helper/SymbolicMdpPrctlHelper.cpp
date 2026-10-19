@@ -238,7 +238,6 @@ std::unique_ptr<CheckResult> SymbolicMdpPrctlHelper<DdType, ValueType>::computeB
         auto checkResult = std::make_unique<storm::modelchecker::SymbolicQuantitativeCheckResult<DdType, ValueType>>(model.getReachableStates(),
                                                                                                                    psiStates.template toAdd<ValueType>());
         if (env.modelchecker().getProduceChoiceValues() && stepBound > 0) {
-            // All values after (stepBound - 1) steps coincide with the values after stepBound steps.
             checkResult->setChoiceValues(
                 transitionMatrix.multiplyMatrix(psiStates.template toAdd<ValueType>().swapVariables(model.getRowColumnMetaVariablePairs()),
                                                 model.getColumnVariables()));
