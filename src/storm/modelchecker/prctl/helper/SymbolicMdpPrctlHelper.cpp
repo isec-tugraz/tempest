@@ -1,5 +1,7 @@
 #include "storm/modelchecker/prctl/helper/SymbolicMdpPrctlHelper.h"
 
+#include <optional>
+
 #include "storm/solver/SymbolicMinMaxLinearEquationSolver.h"
 
 #include "storm/storage/dd/Add.h"
@@ -215,13 +217,33 @@ std::unique_ptr<CheckResult> SymbolicMdpPrctlHelper<DdType, ValueType>::computeB
         std::unique_ptr<storm::solver::SymbolicMinMaxLinearEquationSolver<DdType, ValueType>> solver =
             linearEquationSolverFactory.create(submatrix, maybeStates, model.getIllegalMask() && maybeStates, model.getRowVariables(),
                                                model.getColumnVariables(), model.getNondeterminismVariables(), model.getRowColumnMetaVariablePairs());
-        storm::dd::Add<DdType, ValueType> result = solver->multiply(dir, model.getManager().template getAddZero<ValueType>(), &subvector, stepBound);
+        // For choice values we need the values after (stepBound - 1) steps, which we then extend by one more step.
+        bool const produceChoiceValues = env.modelchecker().getProduceChoiceValues() && stepBound > 0;
+        storm::dd::Add<DdType, ValueType> result = solver->multiply(dir, model.getManager().template getAddZero<ValueType>(), &subvector,
+                                                                    produceChoiceValues ? stepBound - 1 : stepBound);
+        std::optional<storm::dd::Add<DdType, ValueType>> previousFullResult;
+        if (produceChoiceValues) {
+            previousFullResult = psiStates.template toAdd<ValueType>() + result;
+            result = solver->multiply(dir, result, &subvector, 1);
+        }
 
-        return std::unique_ptr<CheckResult>(new storm::modelchecker::SymbolicQuantitativeCheckResult<DdType, ValueType>(
-            model.getReachableStates(), psiStates.template toAdd<ValueType>() + result));
+        auto checkResult = std::make_unique<storm::modelchecker::SymbolicQuantitativeCheckResult<DdType, ValueType>>(
+            model.getReachableStates(), psiStates.template toAdd<ValueType>() + result);
+        if (previousFullResult) {
+            checkResult->setChoiceValues(
+                transitionMatrix.multiplyMatrix(previousFullResult->swapVariables(model.getRowColumnMetaVariablePairs()), model.getColumnVariables()));
+        }
+        return checkResult;
     } else {
-        return std::unique_ptr<CheckResult>(
-            new storm::modelchecker::SymbolicQuantitativeCheckResult<DdType, ValueType>(model.getReachableStates(), psiStates.template toAdd<ValueType>()));
+        auto checkResult = std::make_unique<storm::modelchecker::SymbolicQuantitativeCheckResult<DdType, ValueType>>(model.getReachableStates(),
+                                                                                                                   psiStates.template toAdd<ValueType>());
+        if (env.modelchecker().getProduceChoiceValues() && stepBound > 0) {
+            // All values after (stepBound - 1) steps coincide with the values after stepBound steps.
+            checkResult->setChoiceValues(
+                transitionMatrix.multiplyMatrix(psiStates.template toAdd<ValueType>().swapVariables(model.getRowColumnMetaVariablePairs()),
+                                                model.getColumnVariables()));
+        }
+        return checkResult;
     }
 }
 
