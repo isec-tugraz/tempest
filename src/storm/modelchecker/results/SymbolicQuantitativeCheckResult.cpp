@@ -46,9 +46,10 @@ std::set<storm::expressions::Variable> SymbolicQuantitativeCheckResult<Type, Val
 template<storm::dd::DdType Type, typename ValueType>
 storm::dd::Add<Type, ValueType> SymbolicQuantitativeCheckResult<Type, ValueType>::computeMaskAdd(
     storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model, storm::dd::Add<Type, ValueType> const& transitionMatrix,
-    storm::dd::Add<Type, ValueType> const& choiceValues, ValueType const& threshold) {
+    storm::dd::Add<Type, ValueType> const& choiceValues, ValueType const& threshold, bool minimize) {
     storm::dd::Bdd<Type> validStateChoices = transitionMatrix.notZero().existsAbstract(model.getColumnVariables());
-    storm::dd::Bdd<Type> safeStateChoices = choiceValues.greaterOrEqual(threshold) && validStateChoices;
+    storm::dd::Bdd<Type> thresholdMet = minimize ? choiceValues.lessOrEqual(threshold) : choiceValues.greaterOrEqual(threshold);
+    storm::dd::Bdd<Type> safeStateChoices = thresholdMet && validStateChoices;
     storm::dd::Add<Type, ValueType> result = model.getManager().template getAddZero<ValueType>();
 
     ValueType bitValue = storm::utility::one<ValueType>();
