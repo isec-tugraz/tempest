@@ -54,7 +54,8 @@ class SymbolicQuantitativeCheckResult : public QuantitativeCheckResult<ValueType
     void setChoiceValues(storm::dd::Add<Type, ValueType>&& choiceValues);
     static storm::dd::Add<Type, ValueType> computeMaskAdd(storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model,
                                                           storm::dd::Add<Type, ValueType> const& transitionMatrix,
-                                                          storm::dd::Add<Type, ValueType> const& choiceValues, ValueType const& threshold);
+                                                          storm::dd::Add<Type, ValueType> const& choiceValues, ValueType const& threshold,
+                                                          bool minimize = false);
 
     virtual std::ostream& writeToStream(std::ostream& out) const override;
 
