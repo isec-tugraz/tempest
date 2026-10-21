@@ -44,23 +44,70 @@ std::set<storm::expressions::Variable> SymbolicQuantitativeCheckResult<Type, Val
 }
 
 template<storm::dd::DdType Type, typename ValueType>
-storm::dd::Add<Type, ValueType> SymbolicQuantitativeCheckResult<Type, ValueType>::computeMaskAdd(
-    storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model, storm::dd::Add<Type, ValueType> const& transitionMatrix,
-    storm::dd::Add<Type, ValueType> const& choiceValues, ValueType const& threshold, bool minimize) {
-    storm::dd::Bdd<Type> validStateChoices = transitionMatrix.notZero().existsAbstract(model.getColumnVariables());
-    storm::dd::Bdd<Type> thresholdMet = minimize ? choiceValues.lessOrEqual(threshold) : choiceValues.greaterOrEqual(threshold);
-    storm::dd::Bdd<Type> safeStateChoices = thresholdMet && validStateChoices;
+storm::dd::Add<Type, ValueType> SymbolicQuantitativeCheckResult<Type, ValueType>::computeActionMaskAdd(
+    storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model, storm::dd::Bdd<Type> const& stateChoices) {
     storm::dd::Add<Type, ValueType> result = model.getManager().template getAddZero<ValueType>();
+    std::set<storm::expressions::Variable> actionLabelVariables = getActionLabelVariables(model);
 
     ValueType bitValue = storm::utility::one<ValueType>();
-    for (auto const& actionVariable : getActionLabelVariables(model)) {
-        storm::dd::Bdd<Type> safeStatesForAction =
-            (safeStateChoices && model.getManager().getEncoding(actionVariable, 1)).existsAbstract(model.getNondeterminismVariables());
+    for (auto const& actionVariable : actionLabelVariables) {
+        storm::dd::Bdd<Type> actionEncoding = model.getManager().getEncoding(actionVariable, 1);
+
+        for (auto const& otherActionVariable : actionLabelVariables) {
+            if (otherActionVariable != actionVariable) {
+                actionEncoding &= model.getManager().getEncoding(otherActionVariable, 0);
+            }
+        }
+
+
+
+        storm::dd::Bdd<Type> safeStatesForAction = (stateChoices && actionEncoding).existsAbstract(model.getNondeterminismVariables());
         result += safeStatesForAction.template toAdd<ValueType>() * model.getManager().getConstant(bitValue);
         bitValue *= storm::utility::convertNumber<ValueType, uint64_t>(2);
     }
 
     return result;
+}
+
+template<storm::dd::DdType Type, typename ValueType>
+storm::dd::Add<Type, ValueType> SymbolicQuantitativeCheckResult<Type, ValueType>::computeMaskAdd(
+    storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model, storm::dd::Add<Type, ValueType> const& transitionMatrix,
+    storm::dd::Add<Type, ValueType> const& choiceValues, ValueType const& threshold, storm::OptimizationDirection direction) {
+    
+    
+        
+    storm::dd::Bdd<Type> validStateChoices = transitionMatrix.notZero().existsAbstract(model.getColumnVariables());
+    storm::dd::Bdd<Type> safeStateChoices =
+        (direction == storm::OptimizationDirection::Minimize ? choiceValues.lessOrEqual(threshold) : choiceValues.greaterOrEqual(threshold)) &&
+        validStateChoices;
+
+    return computeActionMaskAdd(model, safeStateChoices);
+}
+
+template<storm::dd::DdType Type, typename ValueType>
+storm::dd::Add<Type, ValueType> SymbolicQuantitativeCheckResult<Type, ValueType>::computeFallbackAdd(
+    storm::models::symbolic::NondeterministicModel<Type, ValueType> const& model, storm::dd::Add<Type, ValueType> const& transitionMatrix,
+    storm::dd::Add<Type, ValueType> const& choiceValues, ValueType const& threshold, storm::OptimizationDirection direction) {
+    storm::dd::Bdd<Type> validStateChoices = transitionMatrix.notZero().existsAbstract(model.getColumnVariables());
+    storm::dd::Bdd<Type> safeStateChoices =
+        (direction == storm::OptimizationDirection::Minimize ? choiceValues.lessOrEqual(threshold) : choiceValues.greaterOrEqual(threshold)) &&
+        validStateChoices;
+    storm::dd::Bdd<Type> statesWithSafeChoice = safeStateChoices.existsAbstract(model.getNondeterminismVariables());
+
+    storm::dd::Bdd<Type> bestStateChoices;
+    if (direction == storm::OptimizationDirection::Minimize) {
+        storm::dd::Add<Type, ValueType> validChoiceValues =
+            validStateChoices.ite(choiceValues, model.getManager().getConstant(storm::utility::infinity<ValueType>()));
+        bestStateChoices = validChoiceValues.minAbstractRepresentative(model.getNondeterminismVariables());
+    } else {
+        ValueType negativeInfinity = -storm::utility::infinity<ValueType>();
+        storm::dd::Add<Type, ValueType> validChoiceValues =
+            validStateChoices.ite(choiceValues, model.getManager().getConstant(negativeInfinity));
+        bestStateChoices = validChoiceValues.maxAbstractRepresentative(model.getNondeterminismVariables());
+    }
+
+    storm::dd::Bdd<Type> fallbackStateChoices = bestStateChoices && validStateChoices && !statesWithSafeChoice;
+    return computeActionMaskAdd(model, fallbackStateChoices);
 }
 
 template<storm::dd::DdType Type, typename ValueType>
@@ -116,24 +163,25 @@ storm::dd::Bdd<Type> const& SymbolicQuantitativeCheckResult<Type, ValueType>::ge
 
 template<storm::dd::DdType Type, typename ValueType>
 bool SymbolicQuantitativeCheckResult<Type, ValueType>::hasChoiceValues() const {
-    return static_cast<bool>(choiceValues);
+    return this->hasChoiceValuesb;
 }
 
 template<storm::dd::DdType Type, typename ValueType>
 storm::dd::Add<Type, ValueType> const& SymbolicQuantitativeCheckResult<Type, ValueType>::getChoiceValues() const {
     STORM_LOG_THROW(this->hasChoiceValues(), storm::exceptions::InvalidOperationException, "Unable to retrieve non-existing choice values.");
-    return choiceValues.get();
+    return choiceValues;
 }
 
 template<storm::dd::DdType Type, typename ValueType>
 storm::dd::Add<Type, ValueType>& SymbolicQuantitativeCheckResult<Type, ValueType>::getChoiceValues() {
     STORM_LOG_THROW(this->hasChoiceValues(), storm::exceptions::InvalidOperationException, "Unable to retrieve non-existing choice values.");
-    return choiceValues.get();
+    return choiceValues;
 }
 
 template<storm::dd::DdType Type, typename ValueType>
 void SymbolicQuantitativeCheckResult<Type, ValueType>::setChoiceValues(storm::dd::Add<Type, ValueType>&& choiceValues) {
     this->choiceValues = std::move(choiceValues);
+    this->hasChoiceValuesb = true;
 }
 
 template<typename ValueType>
@@ -252,6 +300,12 @@ template<storm::dd::DdType Type, typename ValueType>
 void SymbolicQuantitativeCheckResult<Type, ValueType>::oneMinus() {
     storm::dd::Add<Type, ValueType> one = values.getDdManager().template getAddOne<ValueType>();
     values = one - values;
+
+    if (hasChoiceValues()) {
+        storm::dd::Add<Type, ValueType> oneChoices =
+            choiceValues.getDdManager().template getAddOne<ValueType>();
+        choiceValues = oneChoices - choiceValues;
+    }
 }
 
 // Explicitly instantiate the class.

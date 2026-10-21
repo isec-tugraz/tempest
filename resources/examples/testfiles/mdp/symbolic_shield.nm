@@ -1,0 +1,10 @@
+mdp
+
+module test
+    s : [0..2] init 0;
+
+    [a] s=0 | s=1 -> (s'=1);
+    [b] s=0 | s=2 -> (s'=2);
+endmodule
+
+label "goal" = s=1;
