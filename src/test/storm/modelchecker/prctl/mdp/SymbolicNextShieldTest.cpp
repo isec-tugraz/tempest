@@ -134,8 +134,7 @@ TEST(SymbolicShield, ComputesMaxMaskAndFallbackAdds) {
     });
 }
 
-// Disabled until ties are handled in the shield fallback, see tempestpy issue #4.
-TEST(SymbolicShield, DISABLED_FallbackContainsAllTiedOptimalChoices) {
+TEST(SymbolicShield, FallbackContainsAllTiedOptimalChoices) {
 #ifndef STORM_HAVE_SYLVAN
     GTEST_SKIP() << "Library Sylvan not available.";
 #endif

@@ -98,12 +98,12 @@ storm::dd::Add<Type, ValueType> SymbolicQuantitativeCheckResult<Type, ValueType>
     if (direction == storm::OptimizationDirection::Minimize) {
         storm::dd::Add<Type, ValueType> validChoiceValues =
             validStateChoices.ite(choiceValues, model.getManager().getConstant(storm::utility::infinity<ValueType>()));
-        bestStateChoices = validChoiceValues.minAbstractRepresentative(model.getNondeterminismVariables());
+        bestStateChoices = validChoiceValues.equals(validChoiceValues.minAbstract(model.getNondeterminismVariables()));
     } else {
         ValueType negativeInfinity = -storm::utility::infinity<ValueType>();
         storm::dd::Add<Type, ValueType> validChoiceValues =
             validStateChoices.ite(choiceValues, model.getManager().getConstant(negativeInfinity));
-        bestStateChoices = validChoiceValues.maxAbstractRepresentative(model.getNondeterminismVariables());
+        bestStateChoices = validChoiceValues.equals(validChoiceValues.maxAbstract(model.getNondeterminismVariables()));
     }
 
     storm::dd::Bdd<Type> fallbackStateChoices = bestStateChoices && validStateChoices && !statesWithSafeChoice;
