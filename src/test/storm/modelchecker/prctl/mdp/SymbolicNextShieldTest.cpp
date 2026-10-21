@@ -13,7 +13,6 @@
 #include "storm/modelchecker/results/SymbolicQuantitativeCheckResult.h"
 #include "storm/models/symbolic/Mdp.h"
 
-#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -88,17 +87,6 @@ Result& checkSymbolicMdp(std::shared_ptr<Model> const& model, storm::logic::Form
 void expectStateValue(storm::dd::Add<DdType, double> const& add, storm::expressions::Variable const& stateVariable, int_fast64_t state, uint64_t expectedValue,
                       std::string const& what) {
     EXPECT_EQ(static_cast<double>(expectedValue), add.getValue({{stateVariable, state}})) << what << " at state " << state;
-}
-
-void printDiagnostics(std::string const& name, ShieldFixtureData const& fixture, Result const& result, storm::dd::Add<DdType, double> const& shieldMask,
-                      storm::dd::Add<DdType, double> const& fallback) {
-    std::cout << "[diagnostics " << name << "] actionABit=" << fixture.actionABit << " actionBBit=" << fixture.actionBBit
-              << " choiceValues min=" << result.getChoiceValues().getMin() << " max=" << result.getChoiceValues().getMax() << "\n";
-    for (int_fast64_t state = 0; state < 3; ++state) {
-        std::cout << "[diagnostics " << name << "] state " << state << ": value=" << result.getValueVector().getValue({{fixture.stateVariable, state}})
-                  << " mask=" << shieldMask.getValue({{fixture.stateVariable, state}}) << " fallback=" << fallback.getValue({{fixture.stateVariable, state}})
-                  << "\n";
-    }
 }
 
 void addChoiceValueSupport(storm::dd::Add<DdType, double>& choiceValues, Model const& model) {
@@ -249,13 +237,12 @@ TEST(SymbolicShield, UntilProducesChoiceValuesForShielding) {
         storm::dd::Add<DdType, double> fallback =
             Result::computeFallbackAdd(*fixture.model, transitionMatrix, result.getChoiceValues(), 1.1, storm::OptimizationDirection::Maximize);
 
-        printDiagnostics("UntilProducesChoiceValuesForShielding", fixture, result, shieldMask, fallback);
-
         expectStateValue(shieldMask, fixture.stateVariable, 0, fixture.actionABit, "mask");
         expectStateValue(fallback, fixture.stateVariable, 0, fixture.actionABit, "fallback");
 
-        expectStateValue(shieldMask, fixture.stateVariable, 1, fixture.actionABit, "mask");
-        expectStateValue(fallback, fixture.stateVariable, 1, fixture.actionABit, "fallback");
+        // The goal state is terminal in a model built for an until formula and has no choices.
+        expectStateValue(shieldMask, fixture.stateVariable, 1, 0, "mask");
+        expectStateValue(fallback, fixture.stateVariable, 1, 0, "fallback");
 
         expectStateValue(shieldMask, fixture.stateVariable, 2, 0, "mask");
         expectStateValue(fallback, fixture.stateVariable, 2, fixture.actionBBit, "fallback");
@@ -280,13 +267,12 @@ TEST(SymbolicShield, BoundedUntilProducesChoiceValuesForShielding) {
         storm::dd::Add<DdType, double> fallback =
             Result::computeFallbackAdd(*fixture.model, transitionMatrix, result.getChoiceValues(), 1.1, storm::OptimizationDirection::Maximize);
 
-        printDiagnostics("BoundedUntilProducesChoiceValuesForShielding", fixture, result, shieldMask, fallback);
-
         expectStateValue(shieldMask, fixture.stateVariable, 0, fixture.actionABit, "mask");
         expectStateValue(fallback, fixture.stateVariable, 0, fixture.actionABit, "fallback");
 
-        expectStateValue(shieldMask, fixture.stateVariable, 1, fixture.actionABit, "mask");
-        expectStateValue(fallback, fixture.stateVariable, 1, fixture.actionABit, "fallback");
+        // The goal state is terminal in a model built for an until formula and has no choices.
+        expectStateValue(shieldMask, fixture.stateVariable, 1, 0, "mask");
+        expectStateValue(fallback, fixture.stateVariable, 1, 0, "fallback");
 
         expectStateValue(shieldMask, fixture.stateVariable, 2, 0, "mask");
         expectStateValue(fallback, fixture.stateVariable, 2, fixture.actionBBit, "fallback");
