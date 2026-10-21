@@ -16,6 +16,7 @@
 #include "storm/modelchecker/prctl/SparseMdpPrctlModelChecker.h"
 #include "storm/modelchecker/prctl/SymbolicMdpPrctlModelChecker.h"
 #include "storm/modelchecker/results/ExplicitQualitativeCheckResult.h"
+#include "storm/modelchecker/results/ExplicitQuantitativeCheckResult.h"
 #include "storm/modelchecker/results/QualitativeCheckResult.h"
 #include "storm/modelchecker/results/QuantitativeCheckResult.h"
 #include "storm/modelchecker/results/SymbolicQualitativeCheckResult.h"
@@ -1034,6 +1035,46 @@ TYPED_TEST(MdpPrctlModelCheckerTest, BoundedUntilChoiceValues) {
             auto initialChoiceValues = symbolicResult.getChoiceValues() * model->getInitialStates().template toAdd<typename TypeParam::ValueType>();
             auto initialValue = (symbolicResult.getValueVector() * model->getInitialStates().template toAdd<typename TypeParam::ValueType>()).getMax();
             EXPECT_NEAR(initialValue, initialChoiceValues.getMax(), this->precision());
+        });
+    }
+}
+
+TYPED_TEST(MdpPrctlModelCheckerTest, SparseBoundedUntilChoiceValues) {
+    if constexpr (TypeParam::engine == MdpEngine::PrismSparse || TypeParam::engine == MdpEngine::JaniSparse) {
+        auto modelFormulas = this->buildModelFormulas(STORM_TEST_RESOURCES_DIR "/mdp/leader4.nm", "Pmax=? [F<=25 \"elected\"]; Pmin=? [F<=25 \"elected\"]; Pmax=? [F<=0 \"elected\"]");
+        auto model = std::move(modelFormulas.first);
+        auto tasks = this->getTasks(modelFormulas.second);
+        this->execute(model, [&]() {
+            storm::Environment envWithChoices = this->env();
+            envWithChoices.modelchecker().setProduceChoiceValues(true);
+            auto checker = this->createModelChecker(model);
+            for (uint64_t i = 0; i < 2; ++i) {
+                auto expected = checker->check(this->env(), tasks[i]);
+                auto result = checker->check(envWithChoices, tasks[i]);
+                auto const& expectedValues = expected->template asExplicitQuantitativeCheckResult<typename TypeParam::ValueType>().getValueVector();
+                auto const& quantitativeResult = result->template asExplicitQuantitativeCheckResult<typename TypeParam::ValueType>();
+                ASSERT_TRUE(quantitativeResult.hasChoiceValues());
+                // Producing choice values must not change the state values.
+                ASSERT_EQ(expectedValues.size(), quantitativeResult.getValueVector().size());
+                for (uint64_t state = 0; state < expectedValues.size(); ++state) {
+                    EXPECT_NEAR(expectedValues[state], quantitativeResult.getValueVector()[state], this->precision());
+                }
+                // The optimal choice value in each state has to coincide with the value of the state.
+                auto const& choiceValues = quantitativeResult.getChoiceValues();
+                auto const& rowGroupIndices = model->getTransitionMatrix().getRowGroupIndices();
+                for (uint64_t state = 0; state < expectedValues.size(); ++state) {
+                    auto begin = choiceValues.begin() + rowGroupIndices[state];
+                    auto end = choiceValues.begin() + rowGroupIndices[state + 1];
+                    auto optimal = i == 0 ? *std::max_element(begin, end) : *std::min_element(begin, end);
+                    if (expectedValues[state] != storm::utility::one<typename TypeParam::ValueType>()) {
+                        EXPECT_NEAR(expectedValues[state], optimal, this->precision());
+                    }
+                }
+            }
+            // A step bound of 0 has no choice values but must still terminate with the correct values.
+            auto result = checker->check(envWithChoices, tasks[2]);
+            EXPECT_FALSE(result->template asExplicitQuantitativeCheckResult<typename TypeParam::ValueType>().hasChoiceValues());
+            EXPECT_NEAR(this->parseNumber("0"), this->getQuantitativeResultAtInitialState(model, result), this->precision());
         });
     }
 }

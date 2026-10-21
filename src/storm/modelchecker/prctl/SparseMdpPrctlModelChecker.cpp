@@ -152,20 +152,30 @@ std::unique_ptr<CheckResult> SparseMdpPrctlModelChecker<SparseMdpModelType>::com
         }
         uint64_t const lowerBound = pathFormula.getNonStrictLowerBound<uint64_t>();
         uint64_t const upperBound = pathFormula.getNonStrictUpperBound<uint64_t>();
+        bool const computeChoiceValues = produceChoiceValues && !storm::IsIntervalType<ValueType> && upperBound > 0;
         storm::modelchecker::helper::SparseNondeterministicStepBoundedHorizonHelper<ValueType, SolutionType> helper;
         std::vector<SolutionType> numericResult =
             helper.compute(env, storm::solver::SolveGoal<ValueType, SolutionType>(this->getModel(), checkTask), this->getModel().getTransitionMatrix(),
                            this->getModel().getBackwardTransitions(), leftResult.getTruthValuesVector(), rightResult.getTruthValuesVector(),
-                           lowerBound, produceChoiceValues ? upperBound - 1 : upperBound, checkTask.getHint());
-        std::unique_ptr<CheckResult> result(new ExplicitQuantitativeCheckResult<SolutionType>(std::move(numericResult)));
-        if (produceChoiceValues) {
-            if constexpr (!storm::IsIntervalType<ValueType>) {
-                auto const& stateValues = result->asExplicitQuantitativeCheckResult<SolutionType>().getValueVector();
+                           lowerBound, computeChoiceValues ? upperBound - 1 : upperBound, checkTask.getHint());
+        std::vector<SolutionType> choiceValues;
+        if constexpr (!storm::IsIntervalType<ValueType>) {
+            if (computeChoiceValues) {
                 auto multiplier = storm::solver::MultiplierFactory<ValueType, SolutionType>().create(env, this->getModel().getTransitionMatrix());
-                std::vector<SolutionType> choiceValues(this->getModel().getTransitionMatrix().getRowCount(), storm::utility::zero<SolutionType>());
-                multiplier->multiply(env, stateValues, nullptr, choiceValues);
-                result->asExplicitQuantitativeCheckResult<SolutionType>().setChoiceValues(std::move(choiceValues));
+                choiceValues.assign(this->getModel().getTransitionMatrix().getRowCount(), storm::utility::zero<SolutionType>());
+                multiplier->multiply(env, numericResult, nullptr, choiceValues);
+                // Obtain the values after n steps. Target states keep value 1 and states violating phi keep value 0.
+                std::vector<SolutionType> reducedChoiceValues(numericResult.size());
+                storm::utility::vector::reduceVectorMinOrMax(checkTask.getOptimizationDirection(), choiceValues, reducedChoiceValues,
+                                                             this->getModel().getTransitionMatrix().getRowGroupIndices());
+                for (auto state : leftResult.getTruthValuesVector() & ~rightResult.getTruthValuesVector()) {
+                    numericResult[state] = reducedChoiceValues[state];
+                }
             }
+        }
+        std::unique_ptr<CheckResult> result(new ExplicitQuantitativeCheckResult<SolutionType>(std::move(numericResult)));
+        if (computeChoiceValues) {
+            result->asExplicitQuantitativeCheckResult<SolutionType>().setChoiceValues(std::move(choiceValues));
         }
         return result;
     }
